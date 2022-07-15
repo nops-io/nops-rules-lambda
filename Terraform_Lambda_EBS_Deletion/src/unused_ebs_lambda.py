@@ -27,8 +27,7 @@ def Delete_Volume(volume_id):
 
 def lambda_handler(event, context):
     
-    # volume_id=event.volume_id
-    volume_id="vol-091af7ea55470d6d7"
+    volume_id=event['volume_id']
     Verify_Volume(volume_id)
     
     return_msg=Delete_Volume(volume_id)
