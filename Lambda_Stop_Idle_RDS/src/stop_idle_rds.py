@@ -34,8 +34,7 @@ def Stop_DB_Instance(DBInstanceIdentifier):
 
 def lambda_handler(event, context):
     
-    # DBInstanceIdentifier=event['DBInstanceIdentifier']
-    DBInstanceIdentifier='database-1'
+    DBInstanceIdentifier=event['DBInstanceIdentifier']
 
     return_msg=Stop_DB_Instance(DBInstanceIdentifier)
     
