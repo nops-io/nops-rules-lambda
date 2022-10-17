@@ -1,0 +1,124 @@
+Description:
+  nOps - Scheduler Lambda Function
+
+Parameters:
+    Version:
+        Description: Source code version
+        Default: latest
+        Type: String
+
+    EventBusName:
+        Description: The name of your Event Bus in AWS. (E.g. aws.partner/nops.io/xxxxxxxxxxxx/xxxxxxxxxxxxxxxxxx )
+        Type: String
+
+Resources:
+
+    EventBridgeRule:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps scheduler - ${AWS::StackName}
+            EventBusName: !Ref EventBusName
+            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunction.Arn}
+                  Id: "nops-lambda-function"
+            EventPattern: |
+                {
+                  "detail": {
+                    "event_type": [{
+                      "prefix": "scheduler_start_stop"
+                    }]
+                  }
+                }
+
+    LambdaEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunction.Arn}
+            Principal: events.amazonaws.com
+
+    LambdaFunction:
+        Type: "AWS::Lambda::Function"
+        Properties:
+            FunctionName: !Sub nops-scheduler-${AWS::StackName}
+            Description: Nops Function - Start/Stop EC2 instances
+            Runtime: python3.8
+            Handler: main.lambda_handler
+            MemorySize: 128
+            Timeout: 10
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: nops-rules-lambda-sources
+                S3Key: !Sub "start-stop-ec2/main-${Version}.zip"
+
+    LambdaRole:
+        Type: AWS::IAM::Role
+        Properties:
+            RoleName: !Sub nops-scheduler-lambda-${AWS::StackName}
+            Path: /
+            AssumeRolePolicyDocument: |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                  }
+            Policies:
+                - PolicyName: nops-rules
+                  PolicyDocument: !Sub |
+                    {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                                "Effect": "Allow",
+                                "Action": [
+                                    "ec2:StartInstances",
+                                    "ec2:StopInstances"
+                                ],
+                                "Resource": [
+                                    "*"
+                                ]
+                        }]
+                    }
+
+    EventBridgeRole:
+        Type: AWS::IAM::Role
+        Properties:
+            RoleName: !Sub nops-scheduler-eventbridge-${AWS::StackName}
+            Path: /
+            AssumeRolePolicyDocument: |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "events.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                  }
+            Policies:
+                - PolicyName: nops-rules
+                  PolicyDocument: !Sub |
+                    {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                                "Effect": "Allow",
+                                "Action": [
+                                    "events:PutEvents"
+                                ],
+                                "Resource": [
+                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${EventBusName}"
+                                ]
+                        }]
+                    }
