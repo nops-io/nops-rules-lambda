@@ -1,0 +1,29 @@
+name: 'Release'
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  scheduler:
+    name: 'scheduler'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          role-session-name: nops-rules-ga
+          aws-region: us-west-2
+
+      - name: release
+        working-directory: ./scheduler
+        run: ./deploy.sh
+
+      
