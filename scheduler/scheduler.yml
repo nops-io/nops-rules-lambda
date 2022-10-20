@@ -52,7 +52,7 @@ Resources:
             Role: !GetAtt LambdaRole.Arn
             Code:
                 S3Bucket: nops-rules-lambda-sources
-                S3Key: !Sub "start-stop-ec2/main-${Version}.zip"
+                S3Key: !Sub "scheduler/main-${Version}.zip"
 
     LambdaRole:
         Type: AWS::IAM::Role
