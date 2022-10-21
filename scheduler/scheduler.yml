@@ -83,8 +83,10 @@ Resources:
                                     "ec2:StartInstances",
                                     "ec2:StopInstances",
                                     "rds:StopDBInstance",
+
                                     "rds:StartDBInstance"
-                                ],
+                                ],,,,,,aaaa
+
                                 "Resource": [
                                     "*"
                                 ]
