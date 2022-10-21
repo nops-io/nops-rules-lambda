@@ -83,7 +83,10 @@ Resources:
                                     "ec2:StartInstances",
                                     "ec2:StopInstances",
                                     "rds:StopDBInstance",
-                                    "rds:StartDBInstance"
+                                    "rds:StartDBInstance",
+                                    "logs:PutLogEvents",
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream"
                                 ],
                                 "Resource": [
                                     "*"
