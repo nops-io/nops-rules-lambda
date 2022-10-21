@@ -1,9 +1,9 @@
-name: 'Release'
+name: 'Release QA'
 
 on:
   push:
     branches:
-      - deploy
+      - master
 
 jobs:
   scheduler:
@@ -24,4 +24,4 @@ jobs:
 
       - name: release
         working-directory: ./scheduler
-        run: ./deploy.sh prod
+        run: ./deploy.sh
