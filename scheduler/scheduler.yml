@@ -74,7 +74,7 @@ Resources:
                   }
             Policies:
                 - PolicyName: nops-rules
-                  PolicyDocument: !Sub |
+                  PolicyDocument: |
                     {
                         "Version": "2012-10-17",
                         "Statement": [{
@@ -83,7 +83,10 @@ Resources:
                                     "ec2:StartInstances",
                                     "ec2:StopInstances",
                                     "rds:StopDBInstance",
-                                    "rds:StartDBInstance"
+                                    "rds:StartDBInstance",
+                                    "logs:PutLogEvents",
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream"
                                 ],
                                 "Resource": [
                                     "*"
