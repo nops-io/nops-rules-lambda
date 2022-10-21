@@ -1,0 +1,5 @@
+ipdb
+pytest
+moto[ec2]
+moto[rds]
+boto3
