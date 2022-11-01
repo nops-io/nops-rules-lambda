@@ -134,8 +134,9 @@ Resources:
 
     LambdaFunction:
         Type: "AWS::Lambda::Function"
+        DependsOn: CopyZips
         Properties:
-            FunctionName: !Sub nops-scheduler-${AWS::StackName}
+            FunctionName: !Sub ${AWS::StackName}-lambda
             Description: Nops Function - Start/Stop EC2 instances
             Runtime: python3.8
             Handler: main.lambda_handler
@@ -149,7 +150,7 @@ Resources:
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub nops-scheduler-lambda-${AWS::StackName}
+            RoleName: !Sub ${AWS::StackName}-lambda-role
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -189,7 +190,7 @@ Resources:
     EventBridgeRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub nops-scheduler-eventbridge-${AWS::StackName}
+            RoleName: !Sub ${AWS::StackName}-event-bridge
             Path: /
             AssumeRolePolicyDocument: |
                 {
