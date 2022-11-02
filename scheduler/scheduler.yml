@@ -43,8 +43,14 @@ Resources:
               Statement:
                 - Effect: Allow
                   Action:
+                    - s3:GetObject
+                  Resource:
+                    - 'arn:aws:s3:::nops-rules-lambda-sources/scheduler*'
+                - Effect: Allow
+                  Action:
                     - s3:PutObject
                     - s3:DeleteObject
+                    - s3:GetObjectTagging
                   Resource:
                     - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
     CopyZipsFunction:
