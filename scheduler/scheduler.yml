@@ -20,8 +20,9 @@ Resources:
         ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
+        Prefix: 'scheduler/'
         Objects:
-          - !Sub 'scheduler/main-${Version}.zip'
+          - !Sub 'main-${Version}.zip'
     CopyZipsRole:
       Type: AWS::IAM::Role
       Properties:
@@ -45,7 +46,7 @@ Resources:
                     - s3:PutObject
                     - s3:DeleteObject
                   Resource:
-                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/'
+                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
     CopyZipsFunction:
       Type: AWS::Lambda::Function
       Properties:
