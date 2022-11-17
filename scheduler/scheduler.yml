@@ -186,7 +186,8 @@ Resources:
                                     "rds:StartDBInstance",
                                     "logs:PutLogEvents",
                                     "logs:CreateLogGroup",
-                                    "logs:CreateLogStream"
+                                    "logs:CreateLogStream",
+                                    "autoscaling:UpdateAutoScalingGroup"
                                 ],
                                 "Resource": [
                                     "*"
