@@ -1,4 +1,3 @@
-import datetime
 import json
 
 import boto3
@@ -8,6 +7,8 @@ from main import start_ec2_instance
 from main import start_rds_instance
 from main import stop_ec2_instance
 from main import stop_rds_instance
+from main import update_ec2_auto_scaling
+from moto import mock_autoscaling
 from moto import mock_ec2
 from moto import mock_rds
 
@@ -156,7 +157,7 @@ def test_stop_start_rds():
 @mock_rds
 def test_lambda_handler():
     conn = boto3.client("rds", region_name="us-west-2")
-    database = conn.create_db_instance(
+    conn.create_db_instance(
         DBInstanceIdentifier="database-running-for-dev-scheduler",
         AllocatedStorage=10,
         Engine="postgres",
@@ -177,3 +178,38 @@ def test_lambda_handler():
         message["results"][0]
         == "Given RDS instance is stopped - database-running-for-dev-scheduler"
     )
+
+
+@mock_autoscaling
+@mock_ec2
+def test_update_autoscaling():
+    conn = boto3.client("autoscaling", region_name="us-east-1")
+
+    conn.create_launch_configuration(
+        LaunchConfigurationName="TestLC",
+        ImageId=EXAMPLE_AMI_ID,
+        InstanceType="t2.medium",
+    )
+
+    conn.create_auto_scaling_group(
+        AutoScalingGroupName="TestGroup1",
+        MinSize=1,
+        DesiredCapacity=6,
+        MaxSize=10,
+        LaunchConfigurationName="TestLC",
+        AvailabilityZones=["us-east-1e"],
+        Tags=[
+            {
+                "ResourceId": "TestGroup1",
+                "ResourceType": "auto-scaling-group",
+                "PropagateAtLaunch": True,
+                "Key": "TestTagKey1",
+                "Value": "TestTagValue1",
+            }
+        ],
+    )
+    resource = {"resource_id": "TestGroup1", "region": "us-east-1"}
+    action_details = {"DesiredCapacity": 3}
+    update_ec2_auto_scaling(resource, action_details)
+    details = conn.describe_auto_scaling_groups(AutoScalingGroupNames=["TestGroup1"])
+    assert details["AutoScalingGroups"][0]["DesiredCapacity"] == 3
