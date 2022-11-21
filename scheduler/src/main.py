@@ -83,7 +83,6 @@ def lambda_handler(event, context):
             messages.append(
                 handler(
                     resource,
-                    action=action,
                     action_details=action_details,
                 )
             )
