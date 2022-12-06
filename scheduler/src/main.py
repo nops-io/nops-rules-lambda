@@ -1,4 +1,5 @@
 import json
+import logging
 
 import boto3
 from botocore.exceptions import ClientError
@@ -11,6 +12,7 @@ def stop_ec2_instance(resource, action_details=None):
         ec2_client.stop_instances(InstanceIds=[instance_id])
         return f"Given EC2 instance is stopped - {instance_id}"
     except ClientError as error:
+        logging.error(error)
         print(error)
 
 
@@ -21,6 +23,7 @@ def start_ec2_instance(resource, action_details=None):
         ec2_client.start_instances(InstanceIds=[instance_id])
         return f"Given EC2 instance is started - {instance_id}"
     except ClientError as error:
+        logging.error(error)
         print(error)
 
 
@@ -34,6 +37,7 @@ def start_rds_instance(resource, action_details=None):
         )
         return f"Given RDS instance is started  - {db_identifier}"
     except ClientError as error:
+        logging.error(error)
         print(error)
 
 
@@ -47,20 +51,21 @@ def stop_rds_instance(resource, action_details=None):
         )
         return f"Given RDS instance is stopped - {db_identifier}"
     except ClientError as error:
+        logging.error(error)
         print(error)
 
 
 def update_ec2_auto_scaling(resource, action_details=None):
     try:
         client = boto3.client("autoscaling", region_name=resource["region"])
-        autoscaling_id = resource["resource_id"]
+        autoscaling_id = resource["resource_name"]
         client.update_auto_scaling_group(
             AutoScalingGroupName=autoscaling_id,
             DesiredCapacity=action_details["DesiredCapacity"],
         )
-
         return f"Given auto scaling group updated- {autoscaling_id}"
     except ClientError as error:
+        logging.error(error)
         print(error)
 
 
@@ -74,8 +79,7 @@ HANDLER_MAP = {
 def lambda_handler(event, context):
     action = event["detail"]["action"]
     resources = event["detail"]["scheduler"]["resources"]
-    action_details = event["detail"]["scheduler"].get("action_details")
-
+    action_details = event["detail"].get("action_details")
     messages = []
     for resource in resources:
         try:
@@ -87,6 +91,7 @@ def lambda_handler(event, context):
                 )
             )
         except Exception as e:
+            logging.error(e)
             print(e)
     msg = {"results": messages}
     return {"Message": json.dumps(msg)}
