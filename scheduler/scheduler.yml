@@ -144,7 +144,7 @@ Resources:
         DependsOn: CopyZips
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
-            Description: Nops Function - Start/Stop EC2 instances
+            Description: Nops Function - Scheduler Autoscale EC2 instances
             Runtime: python3.8
             Handler: main.lambda_handler
             MemorySize: 128
@@ -153,6 +153,11 @@ Resources:
             Code:
                 S3Bucket: !Ref 'LambdaZipsBucket'
                 S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: 1.0.1
+              - Key: createdon
+                Value: 20221208
 
     LambdaRole:
         Type: AWS::IAM::Role
