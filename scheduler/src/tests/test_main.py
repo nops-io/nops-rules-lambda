@@ -1,4 +1,3 @@
-import datetime
 import json
 
 import boto3
@@ -8,6 +7,8 @@ from main import start_ec2_instance
 from main import start_rds_instance
 from main import stop_ec2_instance
 from main import stop_rds_instance
+from main import update_ec2_auto_scaling
+from moto import mock_autoscaling
 from moto import mock_ec2
 from moto import mock_rds
 
@@ -87,6 +88,88 @@ LAMBDA_EVENT = {
 }
 
 
+AUTOSCALING_LAMBDA_EVENT = {
+    "version": "0",
+    "id": "601dce79-d826-6d29-8ae5-08f9b3144315",
+    "detail-type": "nops_scheduler_start_stop",
+    "source": "aws.partner/nops.io/12345677901/nops_uat_notification_14875_nopsqa-UAT-demo",
+    "account": "12345677901",
+    "time": "2022-12-05T20:00:00Z",
+    "region": "eu-north-1",
+    "resources": [
+        "arn:aws:autoscaling:us-east-1:12345677901:autoScalingGroup:71f448aa-8436-4cdb-888e-b9d417bb12c8:autoScalingGroupName/JENKINS-SLAVE-TEST"
+    ],
+    "detail": {
+        "event_type": "scheduler_start_stop",
+        "action": "update_ec2_auto_scaling",
+        "action_details": {"DesiredCapacity": 2},
+        "action_id": 607,
+        "event_timestamp": 1.6702704e9,
+        "scheduler": {
+            "id": "db140d55-bb88-4283-b24f-5fbb8e528598",
+            "client": 14875,
+            "project": 17637,
+            "user": 3127,
+            "name": "liza-5 dec-dynamic",
+            "account_number": "12345677901",
+            "resources": [
+                {
+                    "id": 535,
+                    "created": "2022-12-05T19:17:25.311392Z",
+                    "modified": "2022-12-05T19:17:25.311392Z",
+                    "item_type": "autoscaling_groups",
+                    "item_id": "1234556",
+                    "resource_id": "arn:aws:autoscaling:us-east-1:12345677901:autoScalingGroup:71f448aa-8436-4cdb-888e-b9d417bb12c8:autoScalingGroupName/JENKINS-SLAVE-TEST",
+                    "resource_name": "JENKINS-SLAVE-TEST",
+                    "resource_arn": None,
+                    "state": "active",
+                    "region": "us-east-1",
+                    "scheduler": "db140d55-bb88-4283-b24f-5fbb8e528598",
+                }
+            ],
+            "actions": [
+                {
+                    "id": 607,
+                    "created": "2022-12-05T19:17:25.308255Z",
+                    "modified": "2022-12-05T19:17:25.308255Z",
+                    "action": "update_auto_scaling_group",
+                    "action_details": {"DesiredCapacity": 2},
+                    "action_type": "selected_day_of_week",
+                    "day_of_week": ["mon"],
+                    "hour": 20,
+                    "minute": 0,
+                    "state": "active",
+                    "last_run": None,
+                    "last_manual_trigger": None,
+                    "run_date": None,
+                    "scheduler": "db140d55-bb88-4283-b24f-5fbb8e528598",
+                },
+                {
+                    "id": 608,
+                    "created": "2022-12-05T19:17:25.310165Z",
+                    "modified": "2022-12-05T19:17:25.310165Z",
+                    "action": "update_auto_scaling_group",
+                    "action_details": {"DesiredCapacity": 3},
+                    "action_type": "selected_day_of_week",
+                    "day_of_week": ["mon"],
+                    "hour": 8,
+                    "minute": 0,
+                    "state": "active",
+                    "last_run": None,
+                    "last_manual_trigger": None,
+                    "run_date": None,
+                    "scheduler": "db140d55-bb88-4283-b24f-5fbb8e528598",
+                },
+            ],
+            "state": "active",
+            "eventbridge_configuration": "1e17e4ad-1590-4401-baf6-d0a472394c0b",
+            "scheduler_for": "scheduler_start_stop",
+        },
+        "triggered_by": "automatically",
+    },
+}
+
+
 def test_get_handler_map():
     assert HANDLER_MAP["ec2"]["start"]
     assert HANDLER_MAP["ec2"]["stop"]
@@ -156,7 +239,7 @@ def test_stop_start_rds():
 @mock_rds
 def test_lambda_handler():
     conn = boto3.client("rds", region_name="us-west-2")
-    database = conn.create_db_instance(
+    conn.create_db_instance(
         DBInstanceIdentifier="database-running-for-dev-scheduler",
         AllocatedStorage=10,
         Engine="postgres",
@@ -176,4 +259,78 @@ def test_lambda_handler():
     assert (
         message["results"][0]
         == "Given RDS instance is stopped - database-running-for-dev-scheduler"
+    )
+
+
+@mock_autoscaling
+@mock_ec2
+def test_update_autoscaling():
+    conn = boto3.client("autoscaling", region_name="us-east-1")
+
+    conn.create_launch_configuration(
+        LaunchConfigurationName="TestLC",
+        ImageId=EXAMPLE_AMI_ID,
+        InstanceType="t2.medium",
+    )
+
+    conn.create_auto_scaling_group(
+        AutoScalingGroupName="TestGroup1",
+        MinSize=1,
+        DesiredCapacity=6,
+        MaxSize=10,
+        LaunchConfigurationName="TestLC",
+        AvailabilityZones=["us-east-1e"],
+        Tags=[
+            {
+                "ResourceId": "arn:TestGroup1",
+                "ResourceType": "auto-scaling-group",
+                "PropagateAtLaunch": True,
+                "Key": "TestTagKey1",
+                "Value": "TestTagValue1",
+            }
+        ],
+    )
+    resource = {
+        "resource_id": "TestGroup1",
+        "region": "us-east-1",
+        "resource_name": "TestGroup1",
+    }
+    action_details = {"DesiredCapacity": 3}
+    update_ec2_auto_scaling(resource, action_details)
+    details = conn.describe_auto_scaling_groups(AutoScalingGroupNames=["TestGroup1"])
+    assert details["AutoScalingGroups"][0]["DesiredCapacity"] == 3
+
+
+@mock_autoscaling
+@mock_ec2
+def test_handle_autoscaling():
+    conn = boto3.client("autoscaling", region_name="us-east-1")
+
+    conn.create_launch_configuration(
+        LaunchConfigurationName="TestLC",
+        ImageId=EXAMPLE_AMI_ID,
+        InstanceType="t2.medium",
+    )
+
+    conn.create_auto_scaling_group(
+        AutoScalingGroupName="JENKINS-SLAVE-TEST",
+        MinSize=1,
+        DesiredCapacity=6,
+        MaxSize=10,
+        LaunchConfigurationName="TestLC",
+        AvailabilityZones=["us-east-1e"],
+        Tags=[
+            {
+                "ResourceId": "JENKINS-SLAVE-TEST",
+                "ResourceType": "auto-scaling-group",
+                "PropagateAtLaunch": True,
+                "Key": "TestTagKey1",
+                "Value": "TestTagValue1",
+            }
+        ],
+    )
+    result = lambda_handler(AUTOSCALING_LAMBDA_EVENT, {})
+    message = json.loads(result["Message"])
+    assert (
+        message["results"][0] == "Given auto scaling group updated- JENKINS-SLAVE-TEST"
     )
