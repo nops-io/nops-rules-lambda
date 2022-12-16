@@ -3,4 +3,4 @@ repos:
   rev: v0.68.0  # The version of cfn-lint to use
   hooks:
     - id: cfn-python-lint
-      files: scheduler/scheduler.yml$
+      files: scheduler/scheduler.yml$ scheduler/encrypted_ebs_kms_policy.yml$
