@@ -155,7 +155,7 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.1
+                Value: 1.0.2
               - Key: createdon
                 Value: 20221216
 

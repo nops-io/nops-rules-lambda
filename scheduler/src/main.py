@@ -9,7 +9,10 @@ def stop_ec2_instance(resource, action_details=None):
     try:
         instance_id = resource["resource_id"]
         ec2_client = boto3.client("ec2", region_name=resource["region"])
-        ec2_client.stop_instances(InstanceIds=[instance_id])
+        kwargs = {}
+        if action_details and action_details.get("Hibernate"):
+            kwargs["Hibernate"] = True
+        ec2_client.stop_instances(InstanceIds=[instance_id], **kwargs)
         return f"Given EC2 instance is stopped - {instance_id}"
     except ClientError as error:
         logging.error(error)
@@ -20,10 +23,7 @@ def start_ec2_instance(resource, action_details=None):
     try:
         instance_id = resource["resource_id"]
         ec2_client = boto3.client("ec2", region_name=resource["region"])
-        kwargs = {}
-        if action_details and action_details.get("Hibernate"):
-            kwargs["Hibernate"] = True
-        ec2_client.start_instances(InstanceIds=[instance_id], **kwargs)
+        ec2_client.start_instances(InstanceIds=[instance_id])
         return f"Given EC2 instance is started - {instance_id}"
     except ClientError as error:
         logging.error(error)
