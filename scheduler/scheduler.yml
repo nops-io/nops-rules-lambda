@@ -157,7 +157,7 @@ Resources:
               - Key: version
                 Value: 1.0.1
               - Key: createdon
-                Value: 20221208
+                Value: 20221216
 
     LambdaRole:
         Type: AWS::IAM::Role
