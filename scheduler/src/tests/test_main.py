@@ -3,6 +3,7 @@ import json
 import boto3
 from main import HANDLER_MAP
 from main import lambda_handler
+from main import modify_db_instance
 from main import start_ec2_instance
 from main import start_rds_instance
 from main import stop_ec2_instance
@@ -334,3 +335,36 @@ def test_handle_autoscaling():
     assert (
         message["results"][0] == "Given auto scaling group updated- JENKINS-SLAVE-TEST"
     )
+
+
+@mock_rds
+def test_modify_rds():
+    conn = boto3.client("rds", region_name="us-west-2")
+    database = conn.create_db_instance(
+        DBInstanceIdentifier="db-master-1",
+        AllocatedStorage=10,
+        Engine="aurora",
+        DBName="staging-postgres",
+        DBInstanceClass="db.r3",
+        LicenseModel="license-included",
+        MasterUsername="root",
+        MasterUserPassword="hunter2",
+        Port=1234,
+        DBSecurityGroups=["my_sg"],
+        VpcSecurityGroupIds=["sg-123456"],
+        EnableCloudwatchLogsExports=["audit", "error"],
+    )
+    db_instance = database["DBInstance"]
+    assert db_instance["DBInstanceStatus"] == "available"
+    resource = {"resource_id": db_instance["DBInstanceArn"], "region": "us-west-2"}
+    mydb = conn.describe_db_instances(
+        DBInstanceIdentifier=database["DBInstance"]["DBInstanceIdentifier"]
+    )["DBInstances"][0]
+    assert mydb["DBInstanceStatus"] == "available"
+
+    modify_db_instance(
+        resource, action_details={"DBInstanceClass": "db.r5", "ApplyImmediately": True}
+    )
+    mydb = conn.describe_db_instances(
+        DBInstanceIdentifier=database["DBInstance"]["DBInstanceIdentifier"]
+    )["DBInstances"][0]
