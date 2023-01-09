@@ -334,3 +334,24 @@ def test_handle_autoscaling():
     assert (
         message["results"][0] == "Given auto scaling group updated- JENKINS-SLAVE-TEST"
     )
+
+
+@mock_ec2
+def test_hibernate_instance():
+    ec2 = boto3.resource("ec2", region_name="us-east-1")
+    reservation = ec2.create_instances(ImageId=EXAMPLE_AMI_ID, MinCount=2, MaxCount=2)
+    instance1, instance2 = reservation
+    assert instance1.state["Name"] == "pending"
+
+    resource = {"resource_id": instance2.id, "region": "us-east-1"}
+    result = stop_ec2_instance(resource, action_details={"Hibernate": True})
+    assert result.startswith("Given EC2 instance is stopped")
+    instances = ec2.instances.all()
+    for instance in instances:
+
+        if instance.id == instance1.id:
+            assert instance.state["Name"] == "running"
+        elif instance.id == instance2.id:
+            assert instance.state["Name"] == "stopped"
+        else:
+            assert False, "Invalid instance id"

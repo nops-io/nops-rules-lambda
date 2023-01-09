@@ -155,9 +155,9 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.2
+                Value: 1.0.3
               - Key: createdon
-                Value: 20221216
+                Value: 20230209
 
     LambdaRole:
         Type: AWS::IAM::Role
