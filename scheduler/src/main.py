@@ -10,9 +10,15 @@ def stop_ec2_instance(resource, action_details=None):
         instance_id = resource["resource_id"]
         ec2_client = boto3.client("ec2", region_name=resource["region"])
         kwargs = {}
+        is_hibernate = False
         if action_details and action_details.get("Hibernate"):
             kwargs["Hibernate"] = True
-        ec2_client.stop_instances(InstanceIds=[instance_id], **kwargs)
+            is_hibernate = True
+        try:
+            ec2_client.stop_instances(InstanceIds=[instance_id], **kwargs)
+        except ClientError as e:
+            if "UnsupportedHibernationConfiguration" in str(e) and is_hibernate:
+                ec2_client.stop_instances(InstanceIds=[instance_id])
         return f"Given EC2 instance is stopped - {instance_id}"
     except ClientError as error:
         logging.error(error)
