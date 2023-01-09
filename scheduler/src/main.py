@@ -66,6 +66,34 @@ def stop_rds_instance(resource, action_details=None):
         print(error)
 
 
+def start_rds_cluster(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        db_identifier = resource["resource_id"].split(":")[-1]
+        client = boto3.client("rds", region_name=region_name)
+        client.start_db_cluster(
+            DBInstanceIdentifier=db_identifier,
+        )
+        return f"Given RDS cluster is started  - {db_identifier}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def stop_rds_cluster(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        db_identifier = resource["resource_id"].split(":")[-1]
+        client = boto3.client("rds", region_name=region_name)
+        client.stop_db_instance(
+            DBInstanceIdentifier=db_identifier,
+        )
+        return f"Given RDS cluster is stopped - {db_identifier}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
 def update_ec2_auto_scaling(resource, action_details=None):
     try:
         client = boto3.client("autoscaling", region_name=resource["region"])
@@ -84,7 +112,6 @@ def modify_db_instance(resource, action_details=None):
     try:
         region_name = resource["region"]
         db_identifier = resource["resource_id"].split(":")[-1]
-        kwargs = {}
         if action_details:
             if action_details.get("DBInstanceClass"):
                 kwargs["DBInstanceClass"] = action_details.get("DBInstanceClass")
