@@ -19,6 +19,8 @@ def stop_ec2_instance(resource, action_details=None):
         except ClientError as e:
             if "UnsupportedHibernationConfiguration" in str(e) and is_hibernate:
                 ec2_client.stop_instances(InstanceIds=[instance_id])
+            else:
+                raise e
         return f"Given EC2 instance is stopped - {instance_id}"
     except ClientError as error:
         logging.error(error)
@@ -64,6 +66,34 @@ def stop_rds_instance(resource, action_details=None):
         print(error)
 
 
+def start_rds_cluster(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        db_identifier = resource["resource_id"].split(":")[-1]
+        client = boto3.client("rds", region_name=region_name)
+        client.start_db_cluster(
+            DBClusterIdentifier=db_identifier,
+        )
+        return f"Given RDS cluster is started  - {db_identifier}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def stop_rds_cluster(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        db_identifier = resource["resource_id"].split(":")[-1]
+        client = boto3.client("rds", region_name=region_name)
+        client.stop_db_cluster(
+            DBClusterIdentifier=db_identifier,
+        )
+        return f"Given RDS cluster is stopped - {db_identifier}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
 def update_ec2_auto_scaling(resource, action_details=None):
     try:
         client = boto3.client("autoscaling", region_name=resource["region"])
@@ -78,9 +108,36 @@ def update_ec2_auto_scaling(resource, action_details=None):
         print(error)
 
 
+def modify_db_instance(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        db_identifier = resource["resource_id"].split(":")[-1]
+        kwargs = {}
+        if action_details:
+            if action_details.get("DBInstanceClass"):
+                kwargs["DBInstanceClass"] = action_details.get("DBInstanceClass")
+            if action_details.get("ApplyImmediately"):
+                kwargs["ApplyImmediately"] = action_details.get("ApplyImmediately")
+        client = boto3.client("rds", region_name=region_name)
+        client.modify_db_instance(DBInstanceIdentifier=db_identifier, **kwargs)
+        return f"Given RDS instance is modified - {db_identifier}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+    pass
+
+
 HANDLER_MAP = {
     "ec2": {"start": start_ec2_instance, "stop": stop_ec2_instance},
-    "rds": {"start": start_rds_instance, "stop": stop_rds_instance},
+    "rds": {
+        "start": start_rds_instance,
+        "stop": stop_rds_instance,
+        "modify": modify_db_instance,
+    },
+    "rds_cluster": {
+        "start": start_rds_cluster,
+        "stop": stop_rds_cluster,
+    },
     "autoscaling_groups": {"update_ec2_auto_scaling": update_ec2_auto_scaling},
 }
 
