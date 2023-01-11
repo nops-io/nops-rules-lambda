@@ -336,6 +336,7 @@ def test_handle_autoscaling():
         message["results"][0] == "Given auto scaling group updated- JENKINS-SLAVE-TEST"
     )
 
+
 @mock_rds
 def test_modify_rds():
     conn = boto3.client("rds", region_name="us-west-2")
@@ -368,6 +369,8 @@ def test_modify_rds():
         DBInstanceIdentifier=database["DBInstance"]["DBInstanceIdentifier"]
     )["DBInstances"][0]
 
+
+@mock_ec2
 def test_hibernate_instance():
     ec2 = boto3.resource("ec2", region_name="us-east-1")
     reservation = ec2.create_instances(ImageId=EXAMPLE_AMI_ID, MinCount=2, MaxCount=2)
