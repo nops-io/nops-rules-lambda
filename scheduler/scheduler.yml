@@ -155,9 +155,9 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.4
+                Value: 1.0.5
               - Key: createdon
-                Value: 20230110
+                Value: 20230118
 
     LambdaRole:
         Type: AWS::IAM::Role
@@ -190,7 +190,7 @@ Resources:
                                     "rds:StopDBInstance",
                                     "rds:StartDBInstance",
                                     "rds:StopDBCluster",
-                                    "rds:StopDBInstance",
+                                    "rds:StartDBCluster",
                                     "rds:ModifyDBInstance",
                                     "logs:PutLogEvents",
                                     "logs:CreateLogGroup",
