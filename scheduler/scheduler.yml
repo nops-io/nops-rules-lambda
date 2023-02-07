@@ -8,7 +8,7 @@ Parameters:
         Type: String
 
     EventBusName:
-        Description: The name of your Event Bus in AWS. (E.g. aws.partner/nops.io/xxxxxxxxxxxx/xxxxxxxxxxxxxxxxxx )
+        Description: The name of your Event Bus in AWS. Please delete any current stack for the same event bus before upgrade stack (E.g. aws.partner/nops.io/xxxxxxxxxxxx/xxxxxxxxxxxxxxxxxx )
         Type: String
 
 Resources:
@@ -148,16 +148,16 @@ Resources:
             Runtime: python3.8
             Handler: main.lambda_handler
             MemorySize: 128
-            Timeout: 10
+            Timeout: 600
             Role: !GetAtt LambdaRole.Arn
             Code:
                 S3Bucket: !Ref 'LambdaZipsBucket'
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.5
+                Value: 1.0.6
               - Key: createdon
-                Value: 20230118
+                Value: 20230207
 
     LambdaRole:
         Type: AWS::IAM::Role
