@@ -155,9 +155,9 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.6
+                Value: 1.0.7
               - Key: createdon
-                Value: 20230207
+                Value: 20230215
 
     LambdaRole:
         Type: AWS::IAM::Role
@@ -195,6 +195,7 @@ Resources:
                                     "logs:PutLogEvents",
                                     "logs:CreateLogGroup",
                                     "logs:CreateLogStream",
+                                    "eks:DescribeNodegroup"
                                     "autoscaling:UpdateAutoScalingGroup"
                                 ],
                                 "Resource": [
