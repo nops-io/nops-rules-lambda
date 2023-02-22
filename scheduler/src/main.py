@@ -98,11 +98,82 @@ def update_ec2_auto_scaling(resource, action_details=None):
     try:
         client = boto3.client("autoscaling", region_name=resource["region"])
         autoscaling_id = resource["resource_name"]
-        client.update_auto_scaling_group(
-            AutoScalingGroupName=autoscaling_id,
-            DesiredCapacity=action_details["DesiredCapacity"],
-        )
-        return f"Given auto scaling group updated- {autoscaling_id}"
+        kwargs = {}
+        if "DesiredCapacity" in action_details:
+            kwargs["DesiredCapacity"] = action_details["DesiredCapacity"]
+        if "MinSize" in action_details:
+            kwargs["MinSize"] = action_details["MinSize"]
+        if "MaxSize" in action_details:
+            kwargs["MaxSize"] = action_details["MaxSize"]
+
+        client.update_auto_scaling_group(AutoScalingGroupName=autoscaling_id, **kwargs)
+        return f"Given auto scaling group updated - {autoscaling_id}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def update_nodegroup_scaling(resource, action_details=None):
+    try:
+        region_name = resource["region"]
+        node_group_arn = resource["resource_id"]
+        clusterName = node_group_arn.split("/")[1]
+        nodegroupName = node_group_arn.split("/")[2]
+        client = boto3.client("eks", region_name=region_name)
+
+        if action_details:
+            scalingConfig = action_details.get("scalingConfig", {})
+            as_action_details = {
+                "MinSize": scalingConfig.get("minSize"),
+                "DesiredCapacity": scalingConfig.get("desiredSize"),
+                "MaxSize": scalingConfig.get("maxSize"),
+            }
+        else:
+            as_action_details = {
+                "MinSize": 0,
+                "DesiredCapacity": 0,
+                "MaxSize": 0,
+            }
+
+        autoscaling_groups = client.describe_nodegroup(
+            clusterName=clusterName, nodegroupName=nodegroupName
+        )["nodegroup"]["resources"]["autoScalingGroups"]
+        autoscaling_group_names = [
+            autoscaling_group["name"] for autoscaling_group in autoscaling_groups
+        ]
+        results = ""
+        for autoscaling_group_name in autoscaling_group_names:
+            resource = {"resource_name": autoscaling_group_name, "region": region_name}
+            result = update_ec2_auto_scaling(resource, action_details=as_action_details)
+            if result:
+                results += " " + result
+        return results
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def start_nodegroup(resource, action_details=None):
+    try:
+        node_group_arn = resource["resource_id"]
+        results = update_nodegroup_scaling(resource, action_details)
+        if results:
+            return f"Given EKS NodeGroup is started - {node_group_arn}" + results
+        else:
+            return f"Given EKS NodeGroup has problem when starting - {node_group_arn}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def stop_nodegroup(resource, action_details=None):
+    try:
+        node_group_arn = resource["resource_id"]
+        results = update_nodegroup_scaling(resource, None)
+        if results:
+            return f"Given EKS NodeGroup is stopped - {node_group_arn}" + results
+        else:
+            return f"Given EKS NodeGroup has problem when stopping - {node_group_arn}"
     except ClientError as error:
         logging.error(error)
         print(error)
@@ -124,7 +195,6 @@ def modify_db_instance(resource, action_details=None):
     except ClientError as error:
         logging.error(error)
         print(error)
-    pass
 
 
 HANDLER_MAP = {
@@ -139,6 +209,10 @@ HANDLER_MAP = {
         "stop": stop_rds_cluster,
     },
     "autoscaling_groups": {"update_ec2_auto_scaling": update_ec2_auto_scaling},
+    "eks_nodegroup": {
+        "start": start_nodegroup,
+        "stop": stop_nodegroup,
+    },
 }
 
 
