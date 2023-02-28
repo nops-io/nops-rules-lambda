@@ -113,27 +113,31 @@ def update_ec2_auto_scaling(resource, action_details=None):
         print(error)
 
 
-def update_nodegroup_scaling(resource, action_details=None):
+def update_nodegroup_scaling(resource, action):
     try:
         region_name = resource["region"]
         node_group_arn = resource["resource_id"]
+        resource_details = resource["resource_details"]
         clusterName = node_group_arn.split("/")[1]
         nodegroupName = node_group_arn.split("/")[2]
         client = boto3.client("eks", region_name=region_name)
 
-        if action_details:
-            scalingConfig = action_details.get("scalingConfig", {})
+        if action == "start":
+            scalingConfig = resource_details.get("scalingConfig", {})
             as_action_details = {
                 "MinSize": scalingConfig.get("minSize"),
                 "DesiredCapacity": scalingConfig.get("desiredSize"),
                 "MaxSize": scalingConfig.get("maxSize"),
             }
-        else:
+        elif action == "stop":
             as_action_details = {
                 "MinSize": 0,
                 "DesiredCapacity": 0,
                 "MaxSize": 0,
             }
+        else:
+            logging.error("Missing action")
+            return
 
         autoscaling_groups = client.describe_nodegroup(
             clusterName=clusterName, nodegroupName=nodegroupName
@@ -156,7 +160,7 @@ def update_nodegroup_scaling(resource, action_details=None):
 def start_nodegroup(resource, action_details=None):
     try:
         node_group_arn = resource["resource_id"]
-        results = update_nodegroup_scaling(resource, action_details)
+        results = update_nodegroup_scaling(resource=resource, action="start")
         if results:
             return f"Given EKS NodeGroup is started - {node_group_arn}" + results
         else:
@@ -169,7 +173,7 @@ def start_nodegroup(resource, action_details=None):
 def stop_nodegroup(resource, action_details=None):
     try:
         node_group_arn = resource["resource_id"]
-        results = update_nodegroup_scaling(resource, None)
+        results = update_nodegroup_scaling(resource=resource, action="stop")
         if results:
             return f"Given EKS NodeGroup is stopped - {node_group_arn}" + results
         else:
