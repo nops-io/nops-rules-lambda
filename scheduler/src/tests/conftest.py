@@ -91,9 +91,6 @@ NODEGROUP_START_LAMBDA_EVENT = {
     "detail": {
         "event_type": "scheduler_start_stop",
         "action": "start",
-        "action_details": {
-            "scalingConfig": {"minSize": 1, "maxSize": 5, "desiredSize": 3}
-        },
         "action_id": 607,
         "event_timestamp": 1.6702704e9,
         "scheduler": {

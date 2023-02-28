@@ -77,6 +77,9 @@ def test_handle_nodegroup_start_stop():
         "state": "active",
         "region": "us-east-1",
         "scheduler": "db140d55-bb88-4283-b24f-5fbb8e528598",
+        "resource_details": {
+            "scalingConfig": {"minSize": 1, "maxSize": 5, "desiredSize": 3}
+        },
     }
     NODEGROUP_START_LAMBDA_EVENT["detail"]["scheduler"]["resources"] = [resource]
 
