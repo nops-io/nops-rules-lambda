@@ -183,6 +183,46 @@ def stop_nodegroup(resource, action_details=None):
         print(error)
 
 
+def start_autoscaling_group(resource, action_details=None):
+    try:
+        autoscaling_group_arn = resource["resource_id"]
+        resource_details = resource["resource_details"]
+        action_details = {
+            "MinSize": resource_details.get("MinSize"),
+            "DesiredCapacity": resource_details.get("DesiredCapacity"),
+            "MaxSize": resource_details.get("MaxSize"),
+        }
+        results = update_ec2_auto_scaling(
+            resource=resource, action_details=action_details
+        )
+        if results:
+            return (
+                f"Given autoscaling group is started - {autoscaling_group_arn}"
+                + results
+            )
+        else:
+            return f"Given eks nodegroup has problem when starting - {autoscaling_group_arn}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+def stop_autoscaling_group(resource, action_details=None):
+    try:
+        autoscaling_group_arn = resource["resource_id"]
+        action_details = {"MinSize": 0, "DesiredCapacity": 0, "MaxSize": 0}
+        results = update_ec2_auto_scaling(
+            resource=resource, action_details=action_details
+        )
+        if results:
+            return f"Given eks nodegroup is started - {autoscaling_group_arn}" + results
+        else:
+            return f"Given eks nodegroup has problem when starting - {autoscaling_group_arn}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
 def modify_db_instance(resource, action_details=None):
     try:
         region_name = resource["region"]
@@ -212,7 +252,11 @@ HANDLER_MAP = {
         "start": start_rds_cluster,
         "stop": stop_rds_cluster,
     },
-    "autoscaling_groups": {"update_ec2_auto_scaling": update_ec2_auto_scaling},
+    "autoscaling_groups": {
+        "update_ec2_auto_scaling": update_ec2_auto_scaling,
+        "start": start_autoscaling_group,
+        "stop": stop_autoscaling_group,
+    },
     "eks_nodegroup": {
         "start": start_nodegroup,
         "stop": stop_nodegroup,

@@ -96,6 +96,13 @@ def test_get_handler_map():
     assert HANDLER_MAP["ec2"]["stop"]
     assert HANDLER_MAP["rds"]["start"]
     assert HANDLER_MAP["rds"]["stop"]
+    assert HANDLER_MAP["rds_cluster"]["start"]
+    assert HANDLER_MAP["rds_cluster"]["stop"]
+    assert HANDLER_MAP["autoscaling_groups"]["start"]
+    assert HANDLER_MAP["autoscaling_groups"]["stop"]
+    assert HANDLER_MAP["autoscaling_groups"]["update_ec2_auto_scaling"]
+    assert HANDLER_MAP["eks_nodegroup"]["start"]
+    assert HANDLER_MAP["eks_nodegroup"]["stop"]
 
 
 @mock_ec2
