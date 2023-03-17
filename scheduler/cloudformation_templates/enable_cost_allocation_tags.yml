@@ -1,0 +1,81 @@
+Description:
+  nOps - Enable Cost Allocation Tags for Master Account
+
+Parameters:
+    Version:
+        Description: Source code version
+        Default: latest
+        Type: String
+
+Resources:
+    CATSetup:
+      Type: Custom::CATSetup
+      Properties:
+        ServiceToken: !GetAtt 'CATSetupFunction.Arn'
+    CATSetupRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Path: /
+        Policies:
+          - PolicyName: cost-allocation-tags-setup
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ce:ListCostAllocationTags 
+                    - ce:UpdateCostAllocationTagsStatus
+                  Resource:
+                    - '*'
+    CATSetupFunction:
+      Type: AWS::Lambda::Function
+      Properties:
+        Description: Setup Cost Allocation Tags in master account 
+        Handler: index.handler
+        Runtime: python3.7
+        Role: !GetAtt 'CATSetupRole.Arn'
+        Timeout: 240
+        Code:
+          ZipFile: |
+            import json
+            import logging
+            import threading
+            import boto3
+            import cfnresponse
+            def cat_setup():
+                ce_client = boto3.client('ce')
+                ce_conn.update_cost_allocation_tags_status(CostAllocationTagsStatus=[{'TagKey': 'aws:autoscaling:groupName', 'Status': 'Active'}])
+                ce_conn.update_cost_allocation_tags_status(CostAllocationTagsStatus=[{'TagKey': 'aws:eks:cluster-name', 'Status': 'Active'}])
+
+
+            def timeout(event, context):
+                logging.error('Execution is about to time out, sending failure response to CloudFormation')
+                cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+            def handler(event, context):
+                # make sure we send a failure to CloudFormation if the function
+                # is going to timeout
+                timer = threading.Timer((context.get_remaining_time_in_millis()
+                          / 1000.00) - 0.5, timeout, args=[event, context])
+                timer.start()
+                print(('Received event: %s' % json.dumps(event)))
+                status = cfnresponse.SUCCESS
+                try:
+                    if event['RequestType'] == 'Delete':
+                        # Do no thing
+                    else:
+                        cat_setup()
+                except Exception as e:
+                    logging.error('Exception: %s' % e, exc_info=True)
+                    status = cfnresponse.FAILED
+                finally:
+                    timer.cancel()
+                    cfnresponse.send(event, context, status, {}, None)

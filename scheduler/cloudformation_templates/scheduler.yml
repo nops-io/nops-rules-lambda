@@ -12,6 +12,12 @@ Parameters:
         Type: String
 
 Resources:
+    NSwitchSetup:
+      Type: Custom::NSwitchSetup
+      Properties:
+        LambdaVersion: "1.0.10"
+        StackVersion: "1.0.0"
+        CreatedOn: "2023-03-17"
     LambdaZipsBucket:
       Type: AWS::S3::Bucket
     CopyZips:
@@ -132,6 +138,46 @@ Resources:
                   }
                 }
 
+    EventBridgeRule:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps nSwitch - ${AWS::StackName}
+            EventBusName: !Ref EventBusName
+            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunction.Arn}
+                  Id: "nops-lambda-function"
+            EventPattern: |
+                {
+                  "detail": {
+                    "event_type": [{
+                      "prefix": "scheduler_update_tag"
+                    }]
+                  }
+                }
+
+    EventBridgeRuleTag:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps Tag resource - ${AWS::StackName}
+            EventBusName: !Ref EventBusName
+            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
+                  Id: "nops-lambda-function-tag-resource"
+            EventPattern: |
+                {
+                  "detail": {
+                    "event_type": [{
+                      "prefix": "scheduler_tag_resource"
+                    }]
+                  }
+                }
+
     LambdaEventPermissions:
         Type: AWS::Lambda::Permission
         Properties:
@@ -144,7 +190,7 @@ Resources:
         DependsOn: CopyZips
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
-            Description: Nops Function - Scheduler Autoscale EC2 instances
+            Description: nOps Function - nSwitch 
             Runtime: python3.8
             Handler: main.lambda_handler
             MemorySize: 128
@@ -155,9 +201,34 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.10
+                Value: !GetAtt NSwitchSetup.LambdaVersion
               - Key: createdon
-                Value: 20230302
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: scheduler
+
+    LambdaFunctionTagResource:
+        Type: "AWS::Lambda::Function"
+        DependsOn: CopyZips
+        Properties:
+            FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
+            Description: nOps Function - Use to tag resource
+            Runtime: python3.8
+            Handler: tag_resource.lambda_handler
+            MemorySize: 128
+            Timeout: 600
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: !Ref 'LambdaZipsBucket'
+                S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: !GetAtt NSwitchSetup.LambdaVersion
+              - Key: createdon
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: tag-resource
+
 
     LambdaRole:
         Type: AWS::IAM::Role
