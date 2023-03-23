@@ -14,16 +14,20 @@ Parameters:
 Resources:
     LambdaZipsBucket:
       Type: AWS::S3::Bucket
-    CopyZips:
-      Type: Custom::CopyZips
+    NSwitchSetup:
+      Type: Custom::NSwitchSetup
       Properties:
-        ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+        ServiceToken: !GetAtt 'NSwitchSetup.Arn'
+        LambdaVersion: "1.0.10"
+        StackVersion: "1.0.0"
+        CreatedOn: "2023-03-17"
+        ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
         Prefix: 'scheduler/'
         Objects:
           - !Sub 'main-${Version}.zip'
-    CopyZipsRole:
+    NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
         AssumeRolePolicyDocument:
@@ -53,14 +57,14 @@ Resources:
                     - s3:GetObjectTagging
                   Resource:
                     - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
-    CopyZipsFunction:
+    NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
         Description: Copies objects from a source S3 bucket to a destination
         Handler: index.handler
         Runtime: python3.7
-        Role: !GetAtt 'CopyZipsRole.Arn'
-        Timeout: 240
+        Role: !GetAtt 'NSwitchSetupRole.Arn'
+        Timeout: 120
         Code:
           ZipFile: |
             import json
@@ -110,7 +114,12 @@ Resources:
                     status = cfnresponse.FAILED
                 finally:
                     timer.cancel()
-                    cfnresponse.send(event, context, status, {}, None)
+                    data = {
+                      'LambdaVersion':event['ResourceProperties']['LambdaVersion'],
+                      'StackVersion': event['ResourceProperties']['StackVersion'],
+                      'CreatedOn': event['ResourceProperties']['CreatedOn']
+                    } 
+                    cfnresponse.send(event, context, status, data, None)
 
     EventBridgeRule:
         Type: AWS::Events::Rule
@@ -132,19 +141,45 @@ Resources:
                   }
                 }
 
-    LambdaEventPermissions:
+    EventBridgeRuleTag:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps Tag resource - ${AWS::StackName}
+            EventBusName: !Ref EventBusName
+            Name: !Sub 'nops-scheduler-tag-resource-${AWS::StackName}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
+                  Id: "nops-lambda-function-tag-resource"
+            EventPattern: |
+                {
+                  "detail-type": [{
+                    "prefix": "nops_scheduler_tag_resource"
+                  }]
+                }
+
+    LambdaFunctionEventPermissions:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName: !Sub ${LambdaFunction.Arn}
             Principal: events.amazonaws.com
 
+
+    LambdaFunctionTagResourceEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
+            Principal: events.amazonaws.com
+
     LambdaFunction:
         Type: "AWS::Lambda::Function"
-        DependsOn: CopyZips
+        DependsOn: NSwitchSetup
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
-            Description: Nops Function - Scheduler Autoscale EC2 instances
+            Description: nOps Function - nSwitch 
             Runtime: python3.8
             Handler: main.lambda_handler
             MemorySize: 128
@@ -155,9 +190,34 @@ Resources:
                 S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
-                Value: 1.0.10
+                Value: !GetAtt NSwitchSetup.LambdaVersion
               - Key: createdon
-                Value: 20230302
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: scheduler
+
+    LambdaFunctionTagResource:
+        Type: "AWS::Lambda::Function"
+        DependsOn: NSwitchSetup
+        Properties:
+            FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
+            Description: nOps Function - Use to tag resource
+            Runtime: python3.8
+            Handler: tag_resource.lambda_handler
+            MemorySize: 128
+            Timeout: 600
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: !Ref 'LambdaZipsBucket'
+                S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: !GetAtt NSwitchSetup.LambdaVersion
+              - Key: createdon
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: tag-resource
+
 
     LambdaRole:
         Type: AWS::IAM::Role
@@ -187,16 +247,21 @@ Resources:
                                 "Action": [
                                     "ec2:StartInstances",
                                     "ec2:StopInstances",
+                                    "ec2:CreateTags",
                                     "rds:StopDBInstance",
                                     "rds:StartDBInstance",
                                     "rds:StopDBCluster",
                                     "rds:StartDBCluster",
+                                    "rds:DescribeDbInstances",
                                     "rds:ModifyDBInstance",
+                                    "rds:AddTagsToResource",
                                     "logs:PutLogEvents",
                                     "logs:CreateLogGroup",
                                     "logs:CreateLogStream",
                                     "eks:DescribeNodegroup",
-                                    "autoscaling:UpdateAutoScalingGroup"
+                                    "eks:TagResource",
+                                    "autoscaling:UpdateAutoScalingGroup",
+                                    "autoscaling:CreateOrUpdateTags"
                                 ],
                                 "Resource": [
                                     "*"
