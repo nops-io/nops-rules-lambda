@@ -1,8 +1,11 @@
 import boto3
+from main import lambda_handler
 from main import start_autoscaling_group
 from main import stop_autoscaling_group
 from moto import mock_autoscaling
 from moto import mock_eks
+
+from .conftest import AUTOSCALING_EVENT
 
 EXAMPLE_AMI_ID = "ami-12c6146b"
 
