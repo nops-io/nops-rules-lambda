@@ -15,6 +15,7 @@ Resources:
     NSwitchSetup:
       Type: Custom::NSwitchSetup
       Properties:
+        ServiceToken: !GetAtt 'LambdaFunction.Arn'
         LambdaVersion: "1.0.10"
         StackVersion: "1.0.0"
         CreatedOn: "2023-03-17"
