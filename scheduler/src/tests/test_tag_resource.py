@@ -111,7 +111,7 @@ def test_update_tag_rds():
     db_instance = database["DBInstance"]
     assert db_instance["DBInstanceStatus"] == "available"
     resource = {
-        "arn": db_instance["DBInstanceArn"],
+        "resource_arn": db_instance["DBInstanceArn"],
         "region": "us-west-2",
         "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
     }
@@ -127,7 +127,7 @@ def test_update_tag_rds():
 @mock_rds
 def test_update_tag_rds_cluster():
     conn = boto3.client("rds", region_name="us-west-2")
-    cluster = conn.create_db_cluster(
+    conn.create_db_cluster(
         DBClusterIdentifier="db-master-1",
         Engine="aurora-mysql",
         MasterUsername="root",
@@ -146,7 +146,7 @@ def test_update_tag_rds_cluster():
         MasterUserPassword="password",
     )
     resource = {
-        "arn": arn,
+        "resource_arn": arn,
         "region": "us-west-2",
         "resource_name": "db-master-1",
         "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
@@ -190,7 +190,7 @@ def test_update_tag_autoscaling_group():
     )
     details = conn.describe_auto_scaling_groups(AutoScalingGroupNames=["TestGroup1"])
     resource = {
-        "arn": details["AutoScalingGroups"][0]["AutoScalingGroupARN"],
+        "resource_arn": details["AutoScalingGroups"][0]["AutoScalingGroupARN"],
         "region": "us-east-1",
         "resource_name": "TestGroup1",
         "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
@@ -219,7 +219,7 @@ def test_update_tag_nodegroup():
         "item_type": "eks_nodegroup",
         "item_id": "1234556",
         "resource_id": node_arn,
-        "resource_arn": "node_arn",
+        "resource_arn": node_arn,
         "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
         "region": "us-east-1",
     }

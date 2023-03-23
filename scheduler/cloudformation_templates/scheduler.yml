@@ -138,26 +138,6 @@ Resources:
                   }
                 }
 
-    EventBridgeRule:
-        Type: AWS::Events::Rule
-        Properties: 
-            Description: !Sub nOps nSwitch - ${AWS::StackName}
-            EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-${AWS::StackName}'
-            RoleArn: !Sub ${EventBridgeRole.Arn}
-            State: ENABLED
-            Targets: 
-                - Arn: !Sub ${LambdaFunction.Arn}
-                  Id: "nops-lambda-function"
-            EventPattern: |
-                {
-                  "detail": {
-                    "event_type": [{
-                      "prefix": "scheduler_update_tag"
-                    }]
-                  }
-                }
-
     EventBridgeRuleTag:
         Type: AWS::Events::Rule
         Properties: 
