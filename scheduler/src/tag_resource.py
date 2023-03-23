@@ -103,7 +103,7 @@ HANDLER_MAP = {
 
 def lambda_handler(event, context):
     action = event["detail"]["action"]
-    resources = event["detail"]["scheduler"]["resources"]
+    resources = event["detail"]["resources"]
     messages = []
     for resource in resources:
         try:

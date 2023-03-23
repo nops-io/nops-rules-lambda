@@ -154,11 +154,9 @@ Resources:
                   Id: "nops-lambda-function-tag-resource"
             EventPattern: |
                 {
-                  "detail": {
-                    "event_type": [{
-                      "prefix": "scheduler_tag_resource"
-                    }]
-                  }
+                  "detail-type": [{
+                    "prefix": "nops_scheduler_tag_resource"
+                  }]
                 }
 
     LambdaEventPermissions:
@@ -241,16 +239,21 @@ Resources:
                                 "Action": [
                                     "ec2:StartInstances",
                                     "ec2:StopInstances",
+                                    "ec2:CreateTags",
                                     "rds:StopDBInstance",
                                     "rds:StartDBInstance",
                                     "rds:StopDBCluster",
                                     "rds:StartDBCluster",
+                                    "rds:DescribeDbInstances",
                                     "rds:ModifyDBInstance",
+                                    "rds:AddTagsToResource",
                                     "logs:PutLogEvents",
                                     "logs:CreateLogGroup",
                                     "logs:CreateLogStream",
                                     "eks:DescribeNodegroup",
+                                    "eks:TagResource",
                                     "autoscaling:UpdateAutoScalingGroup"
+                                    "autoscaling:CreateOrUpdateTags"
                                 ],
                                 "Resource": [
                                     "*"
