@@ -252,7 +252,7 @@ Resources:
                                     "logs:CreateLogStream",
                                     "eks:DescribeNodegroup",
                                     "eks:TagResource",
-                                    "autoscaling:UpdateAutoScalingGroup"
+                                    "autoscaling:UpdateAutoScalingGroup",
                                     "autoscaling:CreateOrUpdateTags"
                                 ],
                                 "Resource": [
