@@ -117,4 +117,5 @@ def lambda_handler(event, context):
             logging.error(e)
             print(e)
     msg = {"results": messages}
+    print(msg)
     return {"Message": json.dumps(msg)}
