@@ -2,8 +2,7 @@
 ENV="$1"
 
 pip install --target ./package -r src/requirements.txt
-cp ./src/main.py ./package
-cp ./src/tag_resource.py ./package
+cp ./src/*.py ./package
 cd package/
 zip -r ../main-latest.zip .
 cd ..
