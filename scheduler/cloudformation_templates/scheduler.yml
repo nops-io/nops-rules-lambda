@@ -64,7 +64,7 @@ Resources:
         Handler: index.handler
         Runtime: python3.7
         Role: !GetAtt 'NSwitchSetupRole.Arn'
-        Timeout: 240
+        Timeout: 120
         Code:
           ZipFile: |
             import json
@@ -114,7 +114,12 @@ Resources:
                     status = cfnresponse.FAILED
                 finally:
                     timer.cancel()
-                    cfnresponse.send(event, context, status, {}, None)
+                    data = {
+                      'LambdaVersion':event['ResourceProperties']['LambdaVersion'],
+                      'StackVersion': event['ResourceProperties']['StackVersion'],
+                      'CreatedOn': event['ResourceProperties']['CreatedOn']
+                    } 
+                    cfnresponse.send(event, context, status, data, None)
 
     EventBridgeRule:
         Type: AWS::Events::Rule
@@ -141,7 +146,7 @@ Resources:
         Properties: 
             Description: !Sub nOps Tag resource - ${AWS::StackName}
             EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            Name: !Sub 'nops-scheduler-tag-resource-${AWS::StackName}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
