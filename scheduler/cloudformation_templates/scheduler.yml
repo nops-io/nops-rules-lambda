@@ -12,25 +12,22 @@ Parameters:
         Type: String
 
 Resources:
+    LambdaZipsBucket:
+      Type: AWS::S3::Bucket
     NSwitchSetup:
       Type: Custom::NSwitchSetup
       Properties:
-        ServiceToken: !GetAtt 'LambdaFunction.Arn'
+        ServiceToken: !GetAtt 'NSwitchSetup.Arn'
         LambdaVersion: "1.0.10"
         StackVersion: "1.0.0"
         CreatedOn: "2023-03-17"
-    LambdaZipsBucket:
-      Type: AWS::S3::Bucket
-    CopyZips:
-      Type: Custom::CopyZips
-      Properties:
-        ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+        ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
         Prefix: 'scheduler/'
         Objects:
           - !Sub 'main-${Version}.zip'
-    CopyZipsRole:
+    NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
         AssumeRolePolicyDocument:
@@ -60,13 +57,13 @@ Resources:
                     - s3:GetObjectTagging
                   Resource:
                     - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
-    CopyZipsFunction:
+    NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
         Description: Copies objects from a source S3 bucket to a destination
         Handler: index.handler
         Runtime: python3.7
-        Role: !GetAtt 'CopyZipsRole.Arn'
+        Role: !GetAtt 'NSwitchSetupRole.Arn'
         Timeout: 240
         Code:
           ZipFile: |
@@ -168,7 +165,7 @@ Resources:
 
     LambdaFunction:
         Type: "AWS::Lambda::Function"
-        DependsOn: CopyZips
+        DependsOn: NSwitchSetup
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
             Description: nOps Function - nSwitch 
@@ -190,7 +187,7 @@ Resources:
 
     LambdaFunctionTagResource:
         Type: "AWS::Lambda::Function"
-        DependsOn: CopyZips
+        DependsOn: NSwitchSetup
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
             Description: nOps Function - Use to tag resource
