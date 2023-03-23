@@ -159,11 +159,19 @@ Resources:
                   }]
                 }
 
-    LambdaEventPermissions:
+    LambdaFunctionEventPermissions:
         Type: AWS::Lambda::Permission
         Properties:
             Action: lambda:InvokeFunction
             FunctionName: !Sub ${LambdaFunction.Arn}
+            Principal: events.amazonaws.com
+
+
+    LambdaFunctionTagResourceEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
             Principal: events.amazonaws.com
 
     LambdaFunction:
