@@ -28,18 +28,16 @@ LAMBDA_EVENT = {
     "detail": {
         "event_type": "scheduler_tag_resource",
         "action": "update_tag",
-        "scheduler": {
-            "resources": [
-                {
-                    "resource_id": "arn:aws:rds:us-west-2:123456789012:db:database-running-for-dev-scheduler",
-                    "resource_name": "database-running-for-dev-scheduler",
-                    "resource_arn": None,
-                    "item_type": "rds",
-                    "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
-                    "region": "us-west-2",
-                }
-            ],
-        },
+        "resources": [
+            {
+                "resource_id": "arn:aws:rds:us-west-2:123456789012:db:database-running-for-dev-scheduler",
+                "resource_name": "database-running-for-dev-scheduler",
+                "resource_arn": None,
+                "item_type": "rds",
+                "tags": [{"Key": "nops-schedule", "Value": "value1,value2"}],
+                "region": "us-west-2",
+            }
+        ],
     },
 }
 
