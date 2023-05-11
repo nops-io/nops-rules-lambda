@@ -1,5 +1,5 @@
 Description:
-  nOps - Scheduler Lambda Function
+  nOps - nSwitch Essential Lambda Function
 
 Parameters:
     Version:
@@ -18,15 +18,15 @@ Resources:
       Type: Custom::NSwitchSetup
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
-        LambdaVersion: "1.0.10"
-        StackVersion: "1.0.1"
+        LambdaVersion: "1.0.0"
+        StackVersion: "1.0.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
-        Prefix: 'scheduler/'
+        Prefix: 'essential/'
         Objects:
-          - !Sub 'main-${Version}.zip'
+          - !Sub 'essential-${Version}.zip'
     NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
@@ -49,14 +49,14 @@ Resources:
                   Action:
                     - s3:GetObject
                   Resource:
-                    - 'arn:aws:s3:::nops-rules-lambda-sources/scheduler*'
+                    - 'arn:aws:s3:::nops-rules-lambda-sources/essential*'
                 - Effect: Allow
                   Action:
                     - s3:PutObject
                     - s3:DeleteObject
                     - s3:GetObjectTagging
                   Resource:
-                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
+                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/essential*'
     NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
@@ -124,9 +124,9 @@ Resources:
     EventBridgeRule:
         Type: AWS::Events::Rule
         Properties: 
-            Description: !Sub nOps scheduler - ${AWS::StackName}
+            Description: !Sub nOps nSwitch Essential - ${AWS::StackName}
             EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            Name: !Sub 'nops-nswitch-essential-${AWS::StackName}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -136,7 +136,7 @@ Resources:
                 {
                   "detail": {
                     "event_type": [{
-                      "prefix": "scheduler_start_stop"
+                      "prefix": "nswitch_essential"
                     }]
                   }
                 }
