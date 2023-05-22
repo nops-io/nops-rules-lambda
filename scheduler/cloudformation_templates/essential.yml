@@ -156,7 +156,7 @@ Resources:
             FunctionName: !Sub ${AWS::StackName}-lambda
             Description: nOps Function - nSwitch 
             Runtime: python3.8
-            Handler: main.lambda_handler
+            Handler: essential.lambda_handler
             MemorySize: 128
             Timeout: 600
             Role: !GetAtt LambdaRole.Arn
@@ -198,23 +198,8 @@ Resources:
                         "Statement": [{
                                 "Effect": "Allow",
                                 "Action": [
-                                    "ec2:StartInstances",
-                                    "ec2:StopInstances",
-                                    "ec2:CreateTags",
-                                    "rds:StopDBInstance",
-                                    "rds:StartDBInstance",
-                                    "rds:StopDBCluster",
-                                    "rds:StartDBCluster",
-                                    "rds:DescribeDbInstances",
-                                    "rds:ModifyDBInstance",
-                                    "rds:AddTagsToResource",
-                                    "logs:PutLogEvents",
-                                    "logs:CreateLogGroup",
-                                    "logs:CreateLogStream",
-                                    "eks:DescribeNodegroup",
-                                    "eks:TagResource",
-                                    "autoscaling:UpdateAutoScalingGroup",
-                                    "autoscaling:CreateOrUpdateTags"
+                                    "ec2:ModifyVolume",
+                                    "ec2:DescribeVolumes",
                                 ],
                                 "Resource": [
                                     "*"
