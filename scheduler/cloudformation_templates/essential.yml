@@ -141,24 +141,6 @@ Resources:
                   }
                 }
 
-    EventBridgeRuleTag:
-        Type: AWS::Events::Rule
-        Properties: 
-            Description: !Sub nOps Tag resource - ${AWS::StackName}
-            EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-tag-resource-${AWS::StackName}'
-            RoleArn: !Sub ${EventBridgeRole.Arn}
-            State: ENABLED
-            Targets: 
-                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
-                  Id: "nops-lambda-function-tag-resource"
-            EventPattern: |
-                {
-                  "detail-type": [{
-                    "prefix": "nops_scheduler_tag_resource"
-                  }]
-                }
-
     LambdaFunctionEventPermissions:
         Type: AWS::Lambda::Permission
         Properties:
@@ -166,13 +148,6 @@ Resources:
             FunctionName: !Sub ${LambdaFunction.Arn}
             Principal: events.amazonaws.com
 
-
-    LambdaFunctionTagResourceEventPermissions:
-        Type: AWS::Lambda::Permission
-        Properties:
-            Action: lambda:InvokeFunction
-            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
-            Principal: events.amazonaws.com
 
     LambdaFunction:
         Type: "AWS::Lambda::Function"
@@ -187,7 +162,7 @@ Resources:
             Role: !GetAtt LambdaRole.Arn
             Code:
                 S3Bucket: !Ref 'LambdaZipsBucket'
-                S3Key: !Sub "scheduler/main-${Version}.zip"
+                S3Key: !Sub "essential/essential-${Version}.zip"
             Tags:
               - Key: version
                 Value: !GetAtt NSwitchSetup.LambdaVersion
@@ -195,28 +170,6 @@ Resources:
                 Value: !GetAtt NSwitchSetup.CreatedOn
               - Key: nswitch-function
                 Value: scheduler
-
-    LambdaFunctionTagResource:
-        Type: "AWS::Lambda::Function"
-        DependsOn: NSwitchSetup
-        Properties:
-            FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
-            Description: nOps Function - Use to tag resource
-            Runtime: python3.8
-            Handler: tag_resource.lambda_handler
-            MemorySize: 128
-            Timeout: 600
-            Role: !GetAtt LambdaRole.Arn
-            Code:
-                S3Bucket: !Ref 'LambdaZipsBucket'
-                S3Key: !Sub "scheduler/main-${Version}.zip"
-            Tags:
-              - Key: version
-                Value: !GetAtt NSwitchSetup.LambdaVersion
-              - Key: createdon
-                Value: !GetAtt NSwitchSetup.CreatedOn
-              - Key: nswitch-function
-                Value: tag-resource
 
 
     LambdaRole:
