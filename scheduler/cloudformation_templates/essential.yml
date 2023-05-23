@@ -176,6 +176,8 @@ Resources:
         Type: AWS::IAM::Role
         Properties:
             RoleName: !Sub ${AWS::StackName}-lambda-role
+            ManagedPolicyArns:
+              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -199,10 +201,7 @@ Resources:
                                 "Effect": "Allow",
                                 "Action": [
                                     "ec2:ModifyVolume",
-                                    "ec2:DescribeVolumes",
-                                    "logs:PutLogEvents",
-                                    "logs:CreateLogGroup",
-                                    "logs:CreateLogStream"
+                                    "ec2:DescribeVolumes"
                                 ],
                                 "Resource": [
                                     "*"
