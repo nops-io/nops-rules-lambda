@@ -1,5 +1,5 @@
 Description:
-  nOps - Scheduler Lambda Function
+  nOps - nSwitch Essential Lambda Function
 
 Parameters:
     Version:
@@ -18,15 +18,15 @@ Resources:
       Type: Custom::NSwitchSetup
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
-        LambdaVersion: "1.0.10"
-        StackVersion: "1.0.1"
+        LambdaVersion: "1.0.0"
+        StackVersion: "1.0.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
-        Prefix: 'scheduler/'
+        Prefix: 'essential/'
         Objects:
-          - !Sub 'main-${Version}.zip'
+          - !Sub 'essential-${Version}.zip'
     NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
@@ -49,14 +49,14 @@ Resources:
                   Action:
                     - s3:GetObject
                   Resource:
-                    - 'arn:aws:s3:::nops-rules-lambda-sources/scheduler*'
+                    - 'arn:aws:s3:::nops-rules-lambda-sources/essential*'
                 - Effect: Allow
                   Action:
                     - s3:PutObject
                     - s3:DeleteObject
                     - s3:GetObjectTagging
                   Resource:
-                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
+                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/essential*'
     NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
@@ -124,9 +124,9 @@ Resources:
     EventBridgeRule:
         Type: AWS::Events::Rule
         Properties: 
-            Description: !Sub nOps scheduler - ${AWS::StackName}
+            Description: !Sub nOps nSwitch Essential - ${AWS::StackName}
             EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-${AWS::StackName}'
+            Name: !Sub 'nops-nswitch-essential-${AWS::StackName}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -136,27 +136,9 @@ Resources:
                 {
                   "detail": {
                     "event_type": [{
-                      "prefix": "scheduler_start_stop"
+                      "prefix": "nswitch_essential"
                     }]
                   }
-                }
-
-    EventBridgeRuleTag:
-        Type: AWS::Events::Rule
-        Properties: 
-            Description: !Sub nOps Tag resource - ${AWS::StackName}
-            EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-scheduler-tag-resource-${AWS::StackName}'
-            RoleArn: !Sub ${EventBridgeRole.Arn}
-            State: ENABLED
-            Targets: 
-                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
-                  Id: "nops-lambda-function-tag-resource"
-            EventPattern: |
-                {
-                  "detail-type": [{
-                    "prefix": "nops_scheduler_tag_resource"
-                  }]
                 }
 
     LambdaFunctionEventPermissions:
@@ -167,13 +149,6 @@ Resources:
             Principal: events.amazonaws.com
 
 
-    LambdaFunctionTagResourceEventPermissions:
-        Type: AWS::Lambda::Permission
-        Properties:
-            Action: lambda:InvokeFunction
-            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
-            Principal: events.amazonaws.com
-
     LambdaFunction:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
@@ -181,13 +156,13 @@ Resources:
             FunctionName: !Sub ${AWS::StackName}-lambda
             Description: nOps Function - nSwitch 
             Runtime: python3.8
-            Handler: main.lambda_handler
+            Handler: essential.lambda_handler
             MemorySize: 128
             Timeout: 600
             Role: !GetAtt LambdaRole.Arn
             Code:
                 S3Bucket: !Ref 'LambdaZipsBucket'
-                S3Key: !Sub "scheduler/main-${Version}.zip"
+                S3Key: !Sub "essential/essential-${Version}.zip"
             Tags:
               - Key: version
                 Value: !GetAtt NSwitchSetup.LambdaVersion
@@ -196,33 +171,13 @@ Resources:
               - Key: nswitch-function
                 Value: scheduler
 
-    LambdaFunctionTagResource:
-        Type: "AWS::Lambda::Function"
-        DependsOn: NSwitchSetup
-        Properties:
-            FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
-            Description: nOps Function - Use to tag resource
-            Runtime: python3.8
-            Handler: tag_resource.lambda_handler
-            MemorySize: 128
-            Timeout: 600
-            Role: !GetAtt LambdaRole.Arn
-            Code:
-                S3Bucket: !Ref 'LambdaZipsBucket'
-                S3Key: !Sub "scheduler/main-${Version}.zip"
-            Tags:
-              - Key: version
-                Value: !GetAtt NSwitchSetup.LambdaVersion
-              - Key: createdon
-                Value: !GetAtt NSwitchSetup.CreatedOn
-              - Key: nswitch-function
-                Value: tag-resource
-
 
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
             RoleName: !Sub ${AWS::StackName}-lambda-role
+            ManagedPolicyArns:
+              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -245,23 +200,8 @@ Resources:
                         "Statement": [{
                                 "Effect": "Allow",
                                 "Action": [
-                                    "ec2:StartInstances",
-                                    "ec2:StopInstances",
-                                    "ec2:CreateTags",
-                                    "rds:StopDBInstance",
-                                    "rds:StartDBInstance",
-                                    "rds:StopDBCluster",
-                                    "rds:StartDBCluster",
-                                    "rds:DescribeDbInstances",
-                                    "rds:ModifyDBInstance",
-                                    "rds:AddTagsToResource",
-                                    "logs:PutLogEvents",
-                                    "logs:CreateLogGroup",
-                                    "logs:CreateLogStream",
-                                    "eks:DescribeNodegroup",
-                                    "eks:TagResource",
-                                    "autoscaling:UpdateAutoScalingGroup",
-                                    "autoscaling:CreateOrUpdateTags"
+                                    "ec2:ModifyVolume",
+                                    "ec2:DescribeVolumes"
                                 ],
                                 "Resource": [
                                     "*"
