@@ -201,7 +201,13 @@ Resources:
                                 "Effect": "Allow",
                                 "Action": [
                                     "ec2:ModifyVolume",
-                                    "ec2:DescribeVolumes"
+                                    "ec2:DescribeVolumes",
+                                    "ec2:DescribeLaunchTemplates",
+                                    "ec2:DescribeLaunchTemplateVersions",
+                                    "ec2:CreateLaunchTemplateVersion",
+                                    "autoscaling:DescribeAutoScalingGroups",
+                                    "autoscaling:DescribeLaunchConfigurations",
+                                    "autoscaling:UpdateAutoScalingGroup",
                                 ],
                                 "Resource": [
                                     "*"
