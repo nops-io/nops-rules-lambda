@@ -62,7 +62,7 @@ Resources:
       Properties:
         Description: Copies objects from a source S3 bucket to a destination
         Handler: index.handler
-        Runtime: python3.7
+        Runtime: python3.11
         Role: !GetAtt 'NSwitchSetupRole.Arn'
         Timeout: 120
         Code:
@@ -180,7 +180,7 @@ Resources:
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
             Description: nOps Function - nSwitch 
-            Runtime: python3.8
+            Runtime: python3.11
             Handler: main.lambda_handler
             MemorySize: 128
             Timeout: 600
@@ -202,7 +202,7 @@ Resources:
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda-tag-resource
             Description: nOps Function - Use to tag resource
-            Runtime: python3.8
+            Runtime: python3.11
             Handler: tag_resource.lambda_handler
             MemorySize: 128
             Timeout: 600
