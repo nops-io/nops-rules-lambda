@@ -41,7 +41,7 @@ Resources:
       Properties:
         Description: Setup Cost Allocation Tags in master account 
         Handler: index.handler
-        Runtime: python3.7
+        Runtime: python3.11
         Role: !GetAtt 'CATSetupRole.Arn'
         Timeout: 240
         Code:
