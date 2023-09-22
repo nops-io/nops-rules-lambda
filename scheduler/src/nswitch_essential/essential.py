@@ -71,14 +71,15 @@ def asg_ebs_migration(resource):
                 SourceVersion=launch_template_version,
                 VersionDescription="GP3 volumes",
                 LaunchTemplateData=new_launch_template_data,
-            )
+            )["LaunchTemplateVersion"]
+            new_launch_template_version_number = str(new_launch_template_version["VersionNumber"])
 
             # if the previous Launch Template version was the default one
             if launch_template_version_obj["DefaultVersion"]:  # is True
                 # update Launch Template default version
                 ec2_client.modify_launch_template(
                     LaunchTemplateId=launch_template_id,
-                    DefaultVersion=new_launch_template_version["VersionNumber"],
+                    DefaultVersion=new_launch_template_version_number,
                 )
 
             if launch_template_version not in ("$Latest", "$Default"):
@@ -88,7 +89,7 @@ def asg_ebs_migration(resource):
                     LaunchTemplate={
                         "LaunchTemplateId": launch_template_id,
                         "LaunchTemplateName": launch_template_name,
-                        "Version": new_launch_template_version["VersionNumber"],
+                        "Version": new_launch_template_version_number,
                     },
                 )
 
