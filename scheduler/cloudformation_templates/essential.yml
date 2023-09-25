@@ -200,6 +200,8 @@ Resources:
                         "Statement": [{
                                 "Effect": "Allow",
                                 "Action": [
+                                    "iam:PassRole",
+                                    "ec2:RunInstances",
                                     "ec2:ModifyVolume",
                                     "ec2:DescribeVolumes",
                                     "ec2:DescribeLaunchTemplates",
