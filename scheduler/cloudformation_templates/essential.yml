@@ -14,12 +14,13 @@ Parameters:
 Resources:
     LambdaZipsBucket:
       Type: AWS::S3::Bucket
+
     NSwitchSetup:
       Type: Custom::NSwitchSetup
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
-        LambdaVersion: "1.0.0"
-        StackVersion: "1.0.0"
+        LambdaVersion: "1.1.0"
+        StackVersion: "1.1.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
@@ -27,6 +28,7 @@ Resources:
         Prefix: 'essential/'
         Objects:
           - !Sub 'essential-${Version}.zip'
+
     NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
@@ -57,6 +59,7 @@ Resources:
                     - s3:GetObjectTagging
                   Resource:
                     - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/essential*'
+
     NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
@@ -148,7 +151,6 @@ Resources:
             FunctionName: !Sub ${LambdaFunction.Arn}
             Principal: events.amazonaws.com
 
-
     LambdaFunction:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
@@ -170,7 +172,6 @@ Resources:
                 Value: !GetAtt NSwitchSetup.CreatedOn
               - Key: nswitch-function
                 Value: scheduler
-
 
     LambdaRole:
         Type: AWS::IAM::Role
