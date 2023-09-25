@@ -48,7 +48,6 @@ def asg_ebs_migration(resource):
         # if ASG uses launch template
         if launch_template:
             launch_template_id = launch_template["LaunchTemplateId"]
-            launch_template_name = launch_template["LaunchTemplateName"]
             launch_template_version = launch_template["Version"]
 
             # get Launch Template Version boto3 object by ID
@@ -88,7 +87,6 @@ def asg_ebs_migration(resource):
                     AutoScalingGroupName=asg_obj["AutoScalingGroupName"],
                     LaunchTemplate={
                         "LaunchTemplateId": launch_template_id,
-                        "LaunchTemplateName": launch_template_name,
                         "Version": new_launch_template_version_number,
                     },
                 )
