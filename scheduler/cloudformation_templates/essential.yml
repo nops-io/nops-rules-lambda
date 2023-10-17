@@ -14,12 +14,13 @@ Parameters:
 Resources:
     LambdaZipsBucket:
       Type: AWS::S3::Bucket
+
     NSwitchSetup:
       Type: Custom::NSwitchSetup
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
-        LambdaVersion: "1.0.0"
-        StackVersion: "1.0.0"
+        LambdaVersion: "1.1.0"
+        StackVersion: "1.1.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
@@ -27,6 +28,7 @@ Resources:
         Prefix: 'essential/'
         Objects:
           - !Sub 'essential-${Version}.zip'
+
     NSwitchSetupRole:
       Type: AWS::IAM::Role
       Properties:
@@ -57,12 +59,13 @@ Resources:
                     - s3:GetObjectTagging
                   Resource:
                     - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/essential*'
+
     NSwitchSetupFunction:
       Type: AWS::Lambda::Function
       Properties:
         Description: Copies objects from a source S3 bucket to a destination
         Handler: index.handler
-        Runtime: python3.7
+        Runtime: python3.11
         Role: !GetAtt 'NSwitchSetupRole.Arn'
         Timeout: 120
         Code:
@@ -148,14 +151,13 @@ Resources:
             FunctionName: !Sub ${LambdaFunction.Arn}
             Principal: events.amazonaws.com
 
-
     LambdaFunction:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
         Properties:
             FunctionName: !Sub ${AWS::StackName}-lambda
             Description: nOps Function - nSwitch 
-            Runtime: python3.8
+            Runtime: python3.11
             Handler: essential.lambda_handler
             MemorySize: 128
             Timeout: 600
@@ -170,7 +172,6 @@ Resources:
                 Value: !GetAtt NSwitchSetup.CreatedOn
               - Key: nswitch-function
                 Value: scheduler
-
 
     LambdaRole:
         Type: AWS::IAM::Role
@@ -200,8 +201,17 @@ Resources:
                         "Statement": [{
                                 "Effect": "Allow",
                                 "Action": [
+                                    "ec2:RunInstances",
                                     "ec2:ModifyVolume",
-                                    "ec2:DescribeVolumes"
+                                    "ec2:DescribeVolumes",
+                                    "ec2:DescribeLaunchTemplates",
+                                    "ec2:DescribeLaunchTemplateVersions",
+                                    "ec2:ModifyLaunchTemplate",
+                                    "ec2:CreateLaunchTemplateVersion",
+                                    "autoscaling:StartInstanceRefresh",
+                                    "autoscaling:DescribeAutoScalingGroups",
+                                    "autoscaling:DescribeLaunchConfigurations",
+                                    "autoscaling:UpdateAutoScalingGroup"
                                 ],
                                 "Resource": [
                                     "*"
