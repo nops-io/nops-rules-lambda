@@ -1,0 +1,315 @@
+Description:
+  nOps - Scheduler Lambda Function
+
+Parameters:
+    Version:
+        Description: Source code version
+        Default: latest
+        Type: String
+
+    EventBridgeName:
+        Description: The partner name of your Event Bridge in AWS. Please delete any current stack for the same event bus before upgrade stack
+        Default: nOps-Partner-EventBridge
+        Type: String
+
+    nOpsClientId:
+        Description: nOps Client ID
+        Type: String
+
+    Environment:
+        Description: Environment
+        Default: prod
+        Type: String
+
+Resources:
+    LambdaZipsBucket:
+      Type: AWS::S3::Bucket
+
+    NSwitchSetup:
+      Type: Custom::NSwitchSetup
+      Properties:
+        ServiceToken: !GetAtt 'NSwitchSetup.Arn'
+        LambdaVersion: "1.0.10"
+        StackVersion: "2.0.0"
+        CreatedOn: "2023-05-11"
+        ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
+        DestBucket: !Ref 'LambdaZipsBucket'
+        SourceBucket: 'nops-rules-lambda-sources'
+        Prefix: 'scheduler/'
+        Objects:
+          - !Sub 'main-${Version}.zip'
+
+    NSwitchSetupRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Path: /
+        Policies:
+          - PolicyName: lambda-copier
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource:
+                    - 'arn:aws:s3:::nops-rules-lambda-sources/scheduler*'
+                - Effect: Allow
+                  Action:
+                    - s3:PutObject
+                    - s3:DeleteObject
+                    - s3:GetObjectTagging
+                  Resource:
+                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
+
+    NSwitchSetupFunction:
+      Type: AWS::Lambda::Function
+      Properties:
+        Description: Copies objects from a source S3 bucket to a destination
+        Handler: index.handler
+        Runtime: python3.11
+        Role: !GetAtt 'NSwitchSetupRole.Arn'
+        Timeout: 120
+        Code:
+          ZipFile: |
+            import json
+            import logging
+            import threading
+            import boto3
+            import cfnresponse
+            def copy_objects(source_bucket, dest_bucket, prefix, objects):
+                s3 = boto3.client('s3')
+                for o in objects:
+                    key = prefix + o
+                    copy_source = {
+                        'Bucket': source_bucket,
+                        'Key': key
+                    }
+                    print(('copy_source: %s' % copy_source))
+                    print(('dest_bucket = %s'%dest_bucket))
+                    print(('key = %s' %key))
+                    s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
+                          Key=key)
+            def delete_objects(bucket, prefix, objects):
+                s3 = boto3.client('s3')
+                objects = {'Objects': [{'Key': prefix + o} for o in objects]}
+                s3.delete_objects(Bucket=bucket, Delete=objects)
+            def timeout(event, context):
+                logging.error('Execution is about to time out, sending failure response to CloudFormation')
+                cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+            def handler(event, context):
+                # make sure we send a failure to CloudFormation if the function
+                # is going to timeout
+                timer = threading.Timer((context.get_remaining_time_in_millis()
+                          / 1000.00) - 0.5, timeout, args=[event, context])
+                timer.start()
+                print(('Received event: %s' % json.dumps(event)))
+                status = cfnresponse.SUCCESS
+                try:
+                    source_bucket = event['ResourceProperties']['SourceBucket']
+                    dest_bucket = event['ResourceProperties']['DestBucket']
+                    prefix = event['ResourceProperties']['Prefix']
+                    objects = event['ResourceProperties']['Objects']
+                    if event['RequestType'] == 'Delete':
+                        delete_objects(dest_bucket, prefix, objects)
+                    else:
+                        copy_objects(source_bucket, dest_bucket, prefix, objects)
+                except Exception as e:
+                    logging.error('Exception: %s' % e, exc_info=True)
+                    status = cfnresponse.FAILED
+                finally:
+                    timer.cancel()
+                    data = {
+                      'LambdaVersion':event['ResourceProperties']['LambdaVersion'],
+                      'StackVersion': event['ResourceProperties']['StackVersion'],
+                      'CreatedOn': event['ResourceProperties']['CreatedOn']
+                    } 
+                    cfnresponse.send(event, context, status, data, None)
+
+    EventBridgeRule:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps scheduler - ${AWS::StackName}
+            EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+            Name: !Sub 'nops-scheduler-${AWS::AccountId}-${AWS::Region}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunction.Arn}
+                  Id: "nops-lambda-function"
+            EventPattern: |
+                {
+                  "detail": {
+                    "event_type": [{
+                      "prefix": "scheduler_start_stop"
+                    }]
+                  }
+                }
+
+    EventBridgeRuleTag:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps Tag resource - ${AWS::StackName}
+            EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+            Name: !Sub 'nops-nswitch-scheduler-tag-resource-${AWS::AccountId}-${AWS::Region}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
+                  Id: "nops-lambda-function-tag-resource"
+            EventPattern: |
+                {
+                  "detail-type": [{
+                    "prefix": "nops_scheduler_tag_resource"
+                  }]
+                }
+
+    LambdaFunctionEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunction.Arn}
+            Principal: events.amazonaws.com
+
+    LambdaFunctionTagResourceEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
+            Principal: events.amazonaws.com
+
+    LambdaFunction:
+        Type: "AWS::Lambda::Function"
+        DependsOn: NSwitchSetup
+        Properties:
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda
+            Description: nOps Function - nSwitch Scheduler
+            Runtime: python3.11
+            Handler: main.lambda_handler
+            MemorySize: 128
+            Timeout: 600
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: !Ref 'LambdaZipsBucket'
+                S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: !GetAtt NSwitchSetup.LambdaVersion
+              - Key: createdon
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: scheduler
+
+    LambdaFunctionTagResource:
+        Type: "AWS::Lambda::Function"
+        DependsOn: NSwitchSetup
+        Properties:
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-tag-resource
+            Description: nOps Function - Use to tag resource
+            Runtime: python3.11
+            Handler: tag_resource.lambda_handler
+            MemorySize: 128
+            Timeout: 600
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: !Ref 'LambdaZipsBucket'
+                S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: !GetAtt NSwitchSetup.LambdaVersion
+              - Key: createdon
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: tag-resource
+
+    LambdaRole:
+        Type: AWS::IAM::Role
+        Properties:
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-role
+            Path: /
+            AssumeRolePolicyDocument: |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                  }
+            Policies:
+                - PolicyName: nops-rules
+                  PolicyDocument: |
+                    {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                                "Effect": "Allow",
+                                "Action": [
+                                    "ec2:StartInstances",
+                                    "ec2:StopInstances",
+                                    "ec2:CreateTags",
+                                    "rds:StopDBInstance",
+                                    "rds:StartDBInstance",
+                                    "rds:StopDBCluster",
+                                    "rds:StartDBCluster",
+                                    "rds:DescribeDbInstances",
+                                    "rds:ModifyDBInstance",
+                                    "rds:AddTagsToResource",
+                                    "logs:PutLogEvents",
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream",
+                                    "eks:DescribeNodegroup",
+                                    "eks:TagResource",
+                                    "autoscaling:UpdateAutoScalingGroup",
+                                    "autoscaling:CreateOrUpdateTags"
+                                ],
+                                "Resource": [
+                                    "*"
+                                ]
+                        }]
+                    }
+
+    EventBridgeRole:
+        Type: AWS::IAM::Role
+        Properties:
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-event-bridge-role
+            Path: /
+            AssumeRolePolicyDocument: |
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "events.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                  }
+            Policies:
+                - PolicyName: nops-rules
+                  PolicyDocument: !Sub |
+                    {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                                "Effect": "Allow",
+                                "Action": [
+                                    "events:PutEvents"
+                                ],
+                                "Resource": [
+                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}"
+                                ]
+                        }]
+                    }
