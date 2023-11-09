@@ -7,8 +7,18 @@ Parameters:
         Default: latest
         Type: String
 
-    EventBusName:
-        Description: The name of your Event Bus in AWS. Please delete any current stack for the same event bus before upgrade stack (E.g. aws.partner/nops.io/xxxxxxxxxxxx/xxxxxxxxxxxxxxxxxx )
+    EventBridgeName:
+        Description: The partner name of your Event Bridge in AWS. Please delete any current stack for the same event bus before upgrade stack
+        Default: nOps-Partner-EventBridge
+        Type: String
+
+    nOpsClientId:
+        Description: nOps Client ID
+        Type: String
+
+    Environment:
+        Description: Environment
+        Default: prod
         Type: String
 
 Resources:
@@ -20,7 +30,7 @@ Resources:
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
         LambdaVersion: "1.1.0"
-        StackVersion: "1.1.0"
+        StackVersion: "2.0.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
@@ -128,8 +138,8 @@ Resources:
         Type: AWS::Events::Rule
         Properties: 
             Description: !Sub nOps nSwitch Essential - ${AWS::StackName}
-            EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-nswitch-essential-${AWS::StackName}'
+            EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+            Name: !Sub 'nops-nswitch-essential-${AWS::AccountId}-${AWS::Region}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -155,8 +165,8 @@ Resources:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
         Properties:
-            FunctionName: !Sub ${AWS::StackName}-lambda
-            Description: nOps Function - nSwitch 
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-essential-lambda
+            Description: nOps Function - nSwitch Essential
             Runtime: python3.11
             Handler: essential.lambda_handler
             MemorySize: 128
@@ -176,7 +186,7 @@ Resources:
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::StackName}-lambda-role
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-essential-lambda-role
             ManagedPolicyArns:
               - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             Path: /
@@ -225,7 +235,7 @@ Resources:
     EventBridgeRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::StackName}-event-bridge
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-essential-event-bridge-role
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -251,7 +261,7 @@ Resources:
                                     "events:PutEvents"
                                 ],
                                 "Resource": [
-                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${EventBusName}"
+                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}"
                                 ]
                         }]
                     }

@@ -1,5 +1,5 @@
 Description:
-  nOps - nSwitch Essential Lambda Function
+  nOps - Scheduler Lambda Function
 
 Parameters:
     Version:
@@ -7,8 +7,18 @@ Parameters:
         Default: latest
         Type: String
 
-    EventBusName:
-        Description: The name of your Event Bus in AWS. Please delete any current stack for the same event bus before upgrade stack (E.g. aws.partner/nops.io/xxxxxxxxxxxx/xxxxxxxxxxxxxxxxxx )
+    EventBridgeName:
+        Description: The partner name of your Event Bridge in AWS. Please delete any current stack for the same event bus before upgrade stack
+        Default: nOps-Partner-EventBridge
+        Type: String
+
+    nOpsClientId:
+        Description: nOps Client ID
+        Type: String
+
+    Environment:
+        Description: Environment
+        Default: prod
         Type: String
 
 Resources:
@@ -19,15 +29,15 @@ Resources:
       Type: Custom::NSwitchSetup
       Properties:
         ServiceToken: !GetAtt 'NSwitchSetup.Arn'
-        LambdaVersion: "1.1.0"
-        StackVersion: "1.1.0"
+        LambdaVersion: "1.0.10"
+        StackVersion: "2.0.0"
         CreatedOn: "2023-05-11"
         ServiceToken: !GetAtt 'NSwitchSetupFunction.Arn'
         DestBucket: !Ref 'LambdaZipsBucket'
         SourceBucket: 'nops-rules-lambda-sources'
-        Prefix: 'essential/'
+        Prefix: 'scheduler/'
         Objects:
-          - !Sub 'essential-${Version}.zip'
+          - !Sub 'main-${Version}.zip'
 
     NSwitchSetupRole:
       Type: AWS::IAM::Role
@@ -51,14 +61,14 @@ Resources:
                   Action:
                     - s3:GetObject
                   Resource:
-                    - 'arn:aws:s3:::nops-rules-lambda-sources/essential*'
+                    - 'arn:aws:s3:::nops-rules-lambda-sources/scheduler*'
                 - Effect: Allow
                   Action:
                     - s3:PutObject
                     - s3:DeleteObject
                     - s3:GetObjectTagging
                   Resource:
-                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/essential*'
+                    - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/scheduler*'
 
     NSwitchSetupFunction:
       Type: AWS::Lambda::Function
@@ -127,9 +137,9 @@ Resources:
     EventBridgeRule:
         Type: AWS::Events::Rule
         Properties: 
-            Description: !Sub nOps nSwitch Essential - ${AWS::StackName}
-            EventBusName: !Ref EventBusName
-            Name: !Sub 'nops-nswitch-essential-${AWS::StackName}'
+            Description: !Sub nOps scheduler - ${AWS::StackName}
+            EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+            Name: !Sub 'nops-scheduler-${AWS::AccountId}-${AWS::Region}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -139,9 +149,27 @@ Resources:
                 {
                   "detail": {
                     "event_type": [{
-                      "prefix": "nswitch_essential"
+                      "prefix": "scheduler_start_stop"
                     }]
                   }
+                }
+
+    EventBridgeRuleTag:
+        Type: AWS::Events::Rule
+        Properties: 
+            Description: !Sub nOps Tag resource - ${AWS::StackName}
+            EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+            Name: !Sub 'nops-nswitch-scheduler-tag-resource-${AWS::AccountId}-${AWS::Region}'
+            RoleArn: !Sub ${EventBridgeRole.Arn}
+            State: ENABLED
+            Targets: 
+                - Arn: !Sub ${LambdaFunctionTagResource.Arn}
+                  Id: "nops-lambda-function-tag-resource"
+            EventPattern: |
+                {
+                  "detail-type": [{
+                    "prefix": "nops_scheduler_tag_resource"
+                  }]
                 }
 
     LambdaFunctionEventPermissions:
@@ -151,20 +179,27 @@ Resources:
             FunctionName: !Sub ${LambdaFunction.Arn}
             Principal: events.amazonaws.com
 
+    LambdaFunctionTagResourceEventPermissions:
+        Type: AWS::Lambda::Permission
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Sub ${LambdaFunctionTagResource.Arn}
+            Principal: events.amazonaws.com
+
     LambdaFunction:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
         Properties:
-            FunctionName: !Sub ${AWS::StackName}-lambda
-            Description: nOps Function - nSwitch 
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda
+            Description: nOps Function - nSwitch Scheduler
             Runtime: python3.11
-            Handler: essential.lambda_handler
+            Handler: main.lambda_handler
             MemorySize: 128
             Timeout: 600
             Role: !GetAtt LambdaRole.Arn
             Code:
                 S3Bucket: !Ref 'LambdaZipsBucket'
-                S3Key: !Sub "essential/essential-${Version}.zip"
+                S3Key: !Sub "scheduler/main-${Version}.zip"
             Tags:
               - Key: version
                 Value: !GetAtt NSwitchSetup.LambdaVersion
@@ -173,12 +208,32 @@ Resources:
               - Key: nswitch-function
                 Value: scheduler
 
+    LambdaFunctionTagResource:
+        Type: "AWS::Lambda::Function"
+        DependsOn: NSwitchSetup
+        Properties:
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-tag-resource
+            Description: nOps Function - Use to tag resource
+            Runtime: python3.11
+            Handler: tag_resource.lambda_handler
+            MemorySize: 128
+            Timeout: 600
+            Role: !GetAtt LambdaRole.Arn
+            Code:
+                S3Bucket: !Ref 'LambdaZipsBucket'
+                S3Key: !Sub "scheduler/main-${Version}.zip"
+            Tags:
+              - Key: version
+                Value: !GetAtt NSwitchSetup.LambdaVersion
+              - Key: createdon
+                Value: !GetAtt NSwitchSetup.CreatedOn
+              - Key: nswitch-function
+                Value: tag-resource
+
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::StackName}-lambda-role
-            ManagedPolicyArns:
-              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-role
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -201,20 +256,23 @@ Resources:
                         "Statement": [{
                                 "Effect": "Allow",
                                 "Action": [
-                                    "ec2:RunInstances",
-                                    "ec2:ModifyVolume",
-                                    "ec2:DescribeVolumes",
-                                    "ec2:DescribeLaunchTemplates",
-                                    "ec2:DescribeLaunchTemplateVersions",
-                                    "ec2:ModifyLaunchTemplate",
-                                    "ec2:CreateLaunchTemplateVersion",
-                                    "ec2:StopInstances",
                                     "ec2:StartInstances",
-                                    "ec2:ModifyInstanceAttribute",
-                                    "autoscaling:StartInstanceRefresh",
-                                    "autoscaling:DescribeAutoScalingGroups",
-                                    "autoscaling:DescribeLaunchConfigurations",
-                                    "autoscaling:UpdateAutoScalingGroup"
+                                    "ec2:StopInstances",
+                                    "ec2:CreateTags",
+                                    "rds:StopDBInstance",
+                                    "rds:StartDBInstance",
+                                    "rds:StopDBCluster",
+                                    "rds:StartDBCluster",
+                                    "rds:DescribeDbInstances",
+                                    "rds:ModifyDBInstance",
+                                    "rds:AddTagsToResource",
+                                    "logs:PutLogEvents",
+                                    "logs:CreateLogGroup",
+                                    "logs:CreateLogStream",
+                                    "eks:DescribeNodegroup",
+                                    "eks:TagResource",
+                                    "autoscaling:UpdateAutoScalingGroup",
+                                    "autoscaling:CreateOrUpdateTags"
                                 ],
                                 "Resource": [
                                     "*"
@@ -225,7 +283,7 @@ Resources:
     EventBridgeRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::StackName}-event-bridge
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-event-bridge-role
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -251,7 +309,7 @@ Resources:
                                     "events:PutEvents"
                                 ],
                                 "Resource": [
-                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/${EventBusName}"
+                                    "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}"
                                 ]
                         }]
                     }
