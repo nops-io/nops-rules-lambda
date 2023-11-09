@@ -105,8 +105,8 @@ def asg_ebs_migration(resource):
 def ec2_rightsizing(resource):
     try:
         region = resource["region"]
-        instance_id = resource["instance_id"]
-        new_instance_type = resource["new_instance_type"]
+        instance_id = resource["resource_id"]
+        new_instance_type = resource["resource_details"]["recommended_instance_type"]
 
         # Initialize the EC2 client
         ec2 = boto3.client("ec2", region_name=region)
