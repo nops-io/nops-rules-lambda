@@ -2,6 +2,7 @@ import json
 import logging
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from utils import get_arn_from_resource
@@ -9,11 +10,18 @@ from utils import get_autoscaling_name_from_resource
 from utils import get_db_identifier_from_resource
 from utils import get_ec2_instance_id_from_resource
 
+config = Config(
+   retries = {
+      'max_attempts': 10,
+      'mode': 'standard',
+   },
+)
+
 
 def stop_ec2_instance(resource, action_details=None):
     try:
         instance_id = get_ec2_instance_id_from_resource(resource)
-        ec2_client = boto3.client("ec2", region_name=resource["region"])
+        ec2_client = boto3.client("ec2", region_name=resource["region"], config=config)
         kwargs = {}
         is_hibernate = False
         if action_details and action_details.get("Hibernate"):
@@ -35,7 +43,7 @@ def stop_ec2_instance(resource, action_details=None):
 def start_ec2_instance(resource, action_details=None):
     try:
         instance_id = get_ec2_instance_id_from_resource(resource)
-        ec2_client = boto3.client("ec2", region_name=resource["region"])
+        ec2_client = boto3.client("ec2", region_name=resource["region"], config=config)
         ec2_client.start_instances(InstanceIds=[instance_id])
         return f"Given EC2 instance is started - {instance_id}"
     except ClientError as error:
@@ -47,7 +55,7 @@ def start_rds_instance(resource, action_details=None):
     try:
         db_identifier = get_db_identifier_from_resource(resource)
         region_name = resource["region"]
-        client = boto3.client("rds", region_name=region_name)
+        client = boto3.client("rds", region_name=region_name, config=config)
         client.start_db_instance(
             DBInstanceIdentifier=db_identifier,
         )
@@ -61,7 +69,7 @@ def stop_rds_instance(resource, action_details=None):
     try:
         region_name = resource["region"]
         db_identifier = get_db_identifier_from_resource(resource)
-        client = boto3.client("rds", region_name=region_name)
+        client = boto3.client("rds", region_name=region_name, config=config)
         client.stop_db_instance(
             DBInstanceIdentifier=db_identifier,
         )
@@ -75,7 +83,7 @@ def start_rds_cluster(resource, action_details=None):
     try:
         region_name = resource["region"]
         db_identifier = get_db_identifier_from_resource(resource)
-        client = boto3.client("rds", region_name=region_name)
+        client = boto3.client("rds", region_name=region_name, config=config)
         client.start_db_cluster(
             DBClusterIdentifier=db_identifier,
         )
@@ -89,7 +97,7 @@ def stop_rds_cluster(resource, action_details=None):
     try:
         region_name = resource["region"]
         db_identifier = get_db_identifier_from_resource(resource)
-        client = boto3.client("rds", region_name=region_name)
+        client = boto3.client("rds", region_name=region_name, config=config)
         client.stop_db_cluster(
             DBClusterIdentifier=db_identifier,
         )
@@ -101,7 +109,7 @@ def stop_rds_cluster(resource, action_details=None):
 
 def update_ec2_auto_scaling(resource, action_details=None):
     try:
-        client = boto3.client("autoscaling", region_name=resource["region"])
+        client = boto3.client("autoscaling", region_name=resource["region"], config=config)
         autoscaling_id = get_autoscaling_name_from_resource(resource)
         kwargs = {}
         if "DesiredCapacity" in action_details:
@@ -125,7 +133,7 @@ def update_nodegroup_scaling(resource, action):
         resource_details = resource["resource_details"]
         clusterName = node_group_arn.split("/")[1]
         nodegroupName = node_group_arn.split("/")[2]
-        client = boto3.client("eks", region_name=region_name)
+        client = boto3.client("eks", region_name=region_name, config=config)
 
         if action == "start":
             scalingConfig = resource_details.get("scalingConfig", {})
@@ -238,7 +246,7 @@ def modify_db_instance(resource, action_details=None):
                 kwargs["DBInstanceClass"] = action_details.get("DBInstanceClass")
             if action_details.get("ApplyImmediately"):
                 kwargs["ApplyImmediately"] = action_details.get("ApplyImmediately")
-        client = boto3.client("rds", region_name=region_name)
+        client = boto3.client("rds", region_name=region_name, config=config)
         client.modify_db_instance(DBInstanceIdentifier=db_identifier, **kwargs)
         return f"Given RDS instance is modified - {db_identifier}"
     except ClientError as error:
