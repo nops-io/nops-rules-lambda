@@ -272,7 +272,13 @@ Resources:
                                     "eks:DescribeNodegroup",
                                     "eks:TagResource",
                                     "autoscaling:UpdateAutoScalingGroup",
-                                    "autoscaling:CreateOrUpdateTags"
+                                    "autoscaling:CreateOrUpdateTags",
+                                    "kms:Decrypt",
+                                    "kms:ReEncrypt*",
+                                    "kms:Encrypt",
+                                    "kms:GenerateDataKey*",
+                                    "kms:DescribeKey",
+                                    "kms:CreateGrant"
                                 ],
                                 "Resource": [
                                     "*"
