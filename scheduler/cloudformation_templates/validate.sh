@@ -1,2 +1,1 @@
-aws cloudformation validate-template --template-body file://scheduler.yaml
-
+aws cloudformation validate-template --template-body file://essentials.yaml

@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description:
+  nOps - Essentials Lambda Functions
+
+Parameters:
+  Version:
+    Description: Source code version
+    Default: latest
+    Type: String
+
+  EventBridgeName:
+    Description: |
+      The partner name of your Event Bridge in AWS. Please delete any current stack 
+      for the same event bus before upgrade stack
+    Default: nOps-Partner-EventBridge
+    Type: String
+
+  nOpsClientId:
+    Description: nOps Client ID
+    Type: String
+
+  Environment:
+    Description: Environment
+    Default: prod
+    Type: String
+
+Resources:
+  EssentialsLambdaZipBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'nops-essentials-lambda-zips-${AWS::AccountId}-${AWS::Region}'
+      Tags:
+        - Key: createdby
+          Value: nops
+
+  EssentialsSetup:
+    Type: Custom::EssentialsSetup
+    Properties:
+      ServiceToken: !GetAtt 'EssentialsSetupFunction.Arn'
+      LambdaVersion: "2.0.0"
+      StackVersion: "3.0.0"
+      CreatedOn: "2024-03-26"
+      DestBucket: !Ref EssentialsLambdaZipBucket
+      SourceBucket: 'nops-rules-lambda-sources'
+      Object: !Sub 'main-${Version}.zip'
+
+  EssentialsSetupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: nops-essentials-lambda-copier
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - 'arn:aws:s3:::nops-rules-lambda-sources/*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectTagging
+                  - s3:PutObjectTagging
+                Resource:
+                  - !Sub 'arn:aws:s3:::${EssentialsLambdaZipBucket}/*'
+
+  EssentialsSetupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Copies objects from a source S3 bucket to a destination
+      Handler: index.handler
+      Runtime: python3.12
+      Role: !GetAtt 'EssentialsSetupRole.Arn'
+      Timeout: 120
+      Code:
+        ZipFile: |
+          import json
+          import logging
+          import threading
+
+          import boto3
+          import cfnresponse
+
+          def copy_objects(source_bucket, dest_bucket, zip_object):
+              print(f'Copying {zip_object} from {source_bucket} to {dest_bucket}')
+              s3 = boto3.client('s3')
+              copy_source = {
+                  'Bucket': source_bucket,
+                  'Key': zip_object,
+              }
+              s3.copy_object(
+                  CopySource=copy_source,
+                  Bucket=dest_bucket,
+                  Key=zip_object,
+              )
+
+          def delete_objects(bucket, zip_object):
+              s3 = boto3.client('s3')
+              objects = {'Objects': [{'Key': zip_object}]}
+              s3.delete_objects(Bucket=bucket, Delete=objects)
+
+          def timeout(event, context):
+              logging.error('Execution is about to time out, sending failure response to CloudFormation')
+              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
+
+          def handler(event, context):
+              # make sure we send a failure to CloudFormation if the function
+              # is going to timeout
+              timer = threading.Timer(
+                  (context.get_remaining_time_in_millis() / 1000.00) - 0.5,
+                  timeout,
+                  args=[event, context],
+              )
+              timer.start()
+
+              print(f'Received event: {event}')
+              status = cfnresponse.SUCCESS
+              try:
+                  source_bucket = event['ResourceProperties']['SourceBucket']
+                  dest_bucket = event['ResourceProperties']['DestBucket']
+                  zip_object = event['ResourceProperties']['Object']
+                  if event['RequestType'] == 'Delete':
+                      delete_objects(dest_bucket, zip_object)
+                  elif event['RequestType'] == 'Create':
+                      copy_objects(source_bucket, dest_bucket, zip_object)
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  status = cfnresponse.FAILED
+              finally:
+                  timer.cancel()
+                  data = {
+                      'LambdaVersion': event['ResourceProperties']['LambdaVersion'],
+                      'StackVersion': event['ResourceProperties']['StackVersion'],
+                      'CreatedOn': event['ResourceProperties']['CreatedOn']
+                  } 
+                  cfnresponse.send(event, context, status, data, None)
+
+  EssentialsEventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: !Sub nOps Essentials EventBridge Rule - ${AWS::StackName}
+      EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
+      Name: !Sub 'nops-essentials-${AWS::AccountId}-${AWS::Region}'
+      RoleArn: !Sub ${EssentialsEventBridgeRole.Arn}
+      State: ENABLED
+      Targets:
+        - Arn: !Sub ${EssentialsLambdaFunction.Arn}
+          Id: "nops-essentials-lambda-function"
+      EventPattern: |
+        {
+          "detail": {
+            "event_type": [
+              "scheduler_start_stop",
+              "nops_scheduler_tag_resource",
+              "nswitch_essential",
+              "essentials_idle_resources"
+            ]
+          }
+        }
+
+  EssentialsEventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub nops-essentials-eventbridge-role-${AWS::AccountId}-${AWS::Region}
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      Policies:
+        - PolicyName: nops-essentials-eventbridge-rules
+          PolicyDocument: !Sub |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "events:PutEvents"
+                ],
+                "Resource": [
+                  "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}"
+                ]
+              }]
+            }
+
+  EssentialsLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    DependsOn: EssentialsSetup
+    Properties:
+      FunctionName: !Sub nops-essentials-lambda-${AWS::AccountId}-${AWS::Region}
+      Description: nOps Essentials - Lambda Function
+      Runtime: python3.12
+      Handler: main.lambda_handler
+      MemorySize: 128
+      Timeout: 600
+      Role: !GetAtt EssentialsLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref EssentialsLambdaZipBucket
+        S3Key: !Sub "main-${Version}.zip"
+      Tags:
+        - Key: version
+          Value: !GetAtt EssentialsSetup.LambdaVersion
+        - Key: createdon
+          Value: !GetAtt EssentialsSetup.CreatedOn
+
+  EssentialsLambdaFunctionEventPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Sub ${EssentialsLambdaFunction.Arn}
+      Principal: events.amazonaws.com
+
+  EssentialsLambdaRole:
+    Type: AWS::IAM::Role
+    Description: |
+      nOps Essentials Lambda Role with the following policy actions allowed:
+        Scheduler:
+          ASG:
+            - autoscaling:CreateOrUpdateTags
+            - autoscaling:UpdateAutoScalingGroup
+          EC2:
+            - ec2:CreateTags
+            - ec2:StartInstances
+            - ec2:StopInstances
+          EKS nodegroup:
+            - eks:DescribeNodegroup
+            - eks:TagResource
+          RDS:
+            - rds:AddTagsToResource
+            - rds:StartDBInstance
+            - rds:StopDBInstance
+          RDS cluster:
+            - rds:AddTagsToResource
+            - rds:StartDBCluster
+            - rds:StopDBCluster
+        Storage:
+          GP3:
+            EC2:
+              - ec2:DescribeVolumes
+              - ec2:ModifyVolume
+            ASG:
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:StartInstanceRefresh
+              - ec2:CreateLaunchTemplateVersion
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:ModifyLaunchTemplate
+        Rightsizing:
+          EC2:
+            - ec2:ModifyInstanceAttribute
+            - ec2:StartInstances
+            - ec2:StopInstances
+        Idle:
+          EC2:
+            - ec2:StopInstances
+          EBS:
+            - ebs:StartSnapshot
+            - ec2:DeleteVolume
+            - ec2:DescribeVolumes
+    Properties:
+      RoleName: !Sub nops-essentials-lambda-role-${AWS::AccountId}-${AWS::Region}
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        }
+      Policies:
+        - PolicyName: nops-essentials-rules
+          PolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "autoscaling:CreateOrUpdateTags",
+                  "autoscaling:DescribeAutoScalingGroups",
+                  "autoscaling:StartInstanceRefresh",
+                  "autoscaling:UpdateAutoScalingGroup",
+                  "ebs:StartSnapshot",
+                  "ec2:CreateLaunchTemplateVersion",
+                  "ec2:CreateTags",
+                  "ec2:DeleteVolume",
+                  "ec2:DescribeVolumes",
+                  "ec2:DescribeLaunchTemplates",
+                  "ec2:DescribeLaunchTemplateVersions",
+                  "ec2:ModifyVolume",
+                  "ec2:ModifyLaunchTemplate",
+                  "ec2:RunInstances",
+                  "ec2:StartInstances",
+                  "ec2:StopInstances",
+                  "eks:DescribeNodegroup",
+                  "eks:TagResource",
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                  "rds:AddTagsToResource",
+                  "rds:DescribeDbInstances",
+                  "rds:ModifyDBInstance",
+                  "rds:StartDBCluster",
+                  "rds:StartDBInstance",
+                  "rds:StopDBCluster",
+                  "rds:StopDBInstance"
+                ],
+                "Resource": [
+                  "*"
+                ]
+              }]
+            }

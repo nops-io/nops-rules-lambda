@@ -270,7 +270,7 @@ def test_modify_rds():
     database = conn.create_db_instance(
         DBInstanceIdentifier="db-master-1",
         AllocatedStorage=10,
-        Engine="aurora",
+        Engine="aurora-postgresql",
         DBName="staging-postgres",
         DBInstanceClass="db.r3",
         LicenseModel="license-included",
