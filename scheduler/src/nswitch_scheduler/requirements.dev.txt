@@ -1,6 +1,6 @@
 ipdb
 pytest
-moto[ec2]
-moto[rds]
-moto[autoscaling]
+moto[ec2]==4.2.14
+moto[rds]==4.2.14
+moto[autoscaling]==4.2.14
 boto3

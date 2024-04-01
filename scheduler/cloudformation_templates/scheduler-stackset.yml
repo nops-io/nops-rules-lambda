@@ -148,9 +148,10 @@ Resources:
             EventPattern: |
                 {
                   "detail": {
-                    "event_type": [{
-                      "prefix": "scheduler_start_stop"
-                    }]
+                    "event_type": [
+                      "scheduler_start_stop",
+                      "essentials_idle_resources"
+                    ]
                   }
                 }
 
@@ -233,7 +234,7 @@ Resources:
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-role
+            RoleName: !Sub nops-essentials-lambda-role-${AWS::AccountId}-${AWS::Region}
             Path: /
             AssumeRolePolicyDocument: |
                 {
