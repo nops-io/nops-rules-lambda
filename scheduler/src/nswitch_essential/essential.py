@@ -136,11 +136,7 @@ def ec2_rightsizing(resource):
 
 
 HANDLER_MAP = {
-    "ebs": {
-        "ebs_migration": ec2_ebs_migration,
-        "delete_volume_with_snapshot": ebs_cleanup_with_snapshot,
-        "delete_volume": ebs_cleanup_without_snapshot,
-    },
+    "ebs": {"ebs_migration": ec2_ebs_migration},
     "asg": {"ebs_migration": asg_ebs_migration},
     "ec2": {"ec2_rightsizing": ec2_rightsizing},
 }
