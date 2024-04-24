@@ -246,8 +246,25 @@ def modify_db_instance(resource, action_details=None):
         print(error)
 
 
+def terminate_ec2_instance(resource):
+    # Terminate the instance
+    try:
+        instance_id = get_ec2_instance_id_from_resource(resource)
+        ec2_client = boto3.client("ec2", region_name=resource["region"])
+        # ec2_client.terminate_instances(InstanceIds=[instance_id])
+        return f"Given EC2 instance is Terminated - {instance_id}"
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+
+
+
 HANDLER_MAP = {
-    "ec2": {"start": start_ec2_instance, "stop": stop_ec2_instance},
+    "ec2": {
+        "start": start_ec2_instance, 
+        "stop": stop_ec2_instance,
+        "terminate": terminate_ec2_instance
+    },
     "rds": {
         "start": start_rds_instance,
         "stop": stop_rds_instance,
