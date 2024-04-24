@@ -1,8 +1,9 @@
 #!/bin/bash
 ENV="$1"
 
-cp ./src/nswitch_scheduler/*.py ./package
-cd package/
+mkdir ./scheduler_package
+cp ./src/nswitch_scheduler/*.py ./scheduler_package
+cd scheduler_package/
 zip -r ../main-latest.zip .
 cd ..
 
@@ -17,6 +18,7 @@ else
 fi
 
 
+mkdir ./essential_package
 cp ./src/nswitch_essential/*.py ./essential_package
 cd essential_package/
 zip -r ../essential-latest.zip .
@@ -31,6 +33,7 @@ else
 fi
 
 
+mkdir ./essentials_package
 cp ./src/nswitch_essential/*.py ./essentials_package
 cd essentials_package/
 zip -r ../essentials-latest.zip .
