@@ -1,7 +1,9 @@
 import json
 import logging
 
-from idle import ebs_delete_volume
+from idle import ebs_cleanup_with_snapshot
+from idle import ebs_cleanup_without_snapshot
+from idle import terminate_ec2_instance
 from rightsizing import ec2_rightsizing
 from scheduler import modify_db_instance
 from scheduler import start_autoscaling_group
@@ -64,9 +66,11 @@ HANDLER_MAP = {
     "essentials_idle_resources": {
         "ec2": {
             "stop": stop_ec2_instance,
+            "terminate": terminate_ec2_instance,
         },
         "ebs": {
-            "delete_volume": ebs_delete_volume,
+            "delete_volume_with_snapshot": ebs_cleanup_with_snapshot,
+            "delete_volume": ebs_cleanup_without_snapshot,
         }
     },
 }
