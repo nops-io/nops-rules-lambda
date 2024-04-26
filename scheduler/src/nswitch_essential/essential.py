@@ -102,6 +102,7 @@ def asg_ebs_migration(resource):
         logging.error(error)
         print(error)
 
+
 def ec2_rightsizing(resource):
     try:
         region = resource["region"]

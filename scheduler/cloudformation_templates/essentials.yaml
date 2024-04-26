@@ -275,8 +275,9 @@ Resources:
         Idle:
           EC2:
             - ec2:StopInstances
+            - ec2:TerminateInstances
           EBS:
-            - ebs:StartSnapshot
+            - ebs:CreateSnapshot
             - ec2:DeleteVolume
             - ec2:DescribeVolumes
     Properties:
@@ -307,8 +308,8 @@ Resources:
                   "autoscaling:DescribeAutoScalingGroups",
                   "autoscaling:StartInstanceRefresh",
                   "autoscaling:UpdateAutoScalingGroup",
-                  "ebs:StartSnapshot",
                   "ec2:CreateLaunchTemplateVersion",
+                  "ebs:CreateSnapshot",
                   "ec2:CreateTags",
                   "ec2:DeleteVolume",
                   "ec2:DescribeVolumes",
@@ -319,6 +320,7 @@ Resources:
                   "ec2:RunInstances",
                   "ec2:StartInstances",
                   "ec2:StopInstances",
+                  "ec2:TerminateInstances",
                   "eks:DescribeNodegroup",
                   "eks:TagResource",
                   "logs:CreateLogGroup",
