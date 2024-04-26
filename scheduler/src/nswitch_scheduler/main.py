@@ -247,7 +247,7 @@ def modify_db_instance(resource, action_details=None):
         print(error)
 
 
-def terminate_ec2_instance(resource):
+def terminate_ec2_instance(resource, action_details=None):
     # Terminate the instance
     try:
         instance_id = get_ec2_instance_id_from_resource(resource)
@@ -259,7 +259,7 @@ def terminate_ec2_instance(resource):
         print(error)
 
 
-def ebs_cleanup_with_snapshot(resource):
+def ebs_cleanup_with_snapshot(resource, action_details=None):
     try:
         # Get the volume Id and EC2 client
         volume_id = get_ebs_volume_id_from_resource(resource)
@@ -291,7 +291,7 @@ def ebs_cleanup_with_snapshot(resource):
         print(error)
 
 
-def ebs_cleanup_without_snapshot(resource):
+def ebs_cleanup_without_snapshot(resource, action_details=None):
     try:
         # Get the volume Id and EC2 client
         volume_id = get_ebs_volume_id_from_resource(resource)
