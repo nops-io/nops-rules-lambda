@@ -40,9 +40,9 @@ zip -r ../essentials-latest.zip .
 cd ..
 
 if [ "$ENV" == "prod" ];then
-    aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essential/essentials-latest.zip --acl public-read
+    aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essentials-latest.zip --acl public-read
     aws s3 cp cloudformation_templates/essentials.yaml s3://nops-rules-lambda-sources/essentials.yaml --acl public-read
 else
-    aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essential/essentials-latest-uat.zip --acl public-read
+    aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essentials-latest-uat.zip --acl public-read
     aws s3 cp cloudformation_templates/essentials.yaml s3://nops-rules-lambda-sources/essentials-uat.yaml --acl public-read
 fi
