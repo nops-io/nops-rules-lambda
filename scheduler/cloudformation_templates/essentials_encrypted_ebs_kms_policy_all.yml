@@ -23,7 +23,6 @@ Resources:
               - 'kms:Encrypt'
               - 'kms:DescribeKey'
               - 'kms:Decrypt'
-              - 'kms:Encrypt'
             Resource:
               - '*'
 
