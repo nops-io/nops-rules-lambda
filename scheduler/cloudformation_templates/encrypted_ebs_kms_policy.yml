@@ -1,12 +1,12 @@
 Description:
-  Allow Scheduler Lambda Function to use encrypted EBS with KMS
+  Allow Essentials Scheduler Lambda Function to use KMS for starting EC2s with encrypted EBS
 
 Parameters:
     kmsArn:
         Description: The KMS ARN
         Type: String
     lambdaExecutionRole:
-        Description: The execution role name for Scheduler Lambda. Please change it if you use different stack and role name.
+        Description: The execution role name for Essentials Scheduler Lambda. Please change it if you use different stack and role name.
         Type: String
 
 Resources:
@@ -16,7 +16,7 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: AllowSchedulerLambdaToUseEncryptedEBS 
+          - Sid: AllowEssentialsSchedulerLambdaToUseEncryptedEBS 
             Effect: Allow
             Action:
               - 'kms:RetireGrant'
@@ -26,7 +26,6 @@ Resources:
               - 'kms:Encrypt'
               - 'kms:DescribeKey'
               - 'kms:Decrypt'
-              - 'kms:Encrypt'
             Resource: !Ref 'kmsArn'
       Roles: 
         - !Ref 'lambdaExecutionRole' 

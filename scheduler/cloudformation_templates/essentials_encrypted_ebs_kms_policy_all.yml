@@ -1,0 +1,30 @@
+Description:
+  Allow Essentials Lambda Functions to use KMS for starting EC2s with encrypted EBS
+
+Parameters:
+    lambdaExecutionRole:
+        Description: The execution role name for Essentials Lambda. Please change it if you use different stack and role name.
+        Type: String
+
+Resources:
+  KMSEBSAccessPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEssentialsLambdaToUseEncryptedEBS 
+            Effect: Allow
+            Action:
+              - 'kms:RetireGrant'
+              - 'kms:CreateGrant'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:Encrypt'
+              - 'kms:DescribeKey'
+              - 'kms:Decrypt'
+            Resource:
+              - '*'
+
+      Roles: 
+        - !Ref 'lambdaExecutionRole' 
