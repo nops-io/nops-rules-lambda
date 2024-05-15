@@ -1,18 +1,21 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
+
 Description:
   nOps - Essentials Lambda Functions
 
+
 Parameters:
   Version:
-    Description: Source code version
-    Default: latest
+    Description: Essentials Stack Version
+    Type: String
+
+  PreviousVersion:
+    Description: Previous Essentials Stack Version for cleanup
     Type: String
 
   EventBridgeName:
-    Description: |
-      The partner name of your Event Bridge in AWS. Please delete any current stack 
-      for the same event bus before upgrade stack
+    Description: The partner name of your Event Bridge in AWS.
     Default: nOps-Partner-EventBridge
     Type: String
 
@@ -25,25 +28,26 @@ Parameters:
     Default: prod
     Type: String
 
+
 Resources:
   EssentialsLambdaZipBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'nops-essentials-lambda-zips-${AWS::AccountId}-${AWS::Region}'
+      BucketName: !Sub 'nops-essentials-lambda-zips-${AWS::AccountId}-${AWS::Region}-${Version}'
       Tags:
         - Key: createdby
           Value: nops
+        - Key: nops-essentials-stack-version
+          Value: !Ref Version
 
   EssentialsSetup:
     Type: Custom::EssentialsSetup
     Properties:
       ServiceToken: !GetAtt 'EssentialsSetupFunction.Arn'
-      LambdaVersion: "2.0.0"
-      StackVersion: "3.0.0"
-      CreatedOn: "2024-03-26"
+      CreatedOn: "2024-05-13"
       DestBucket: !Ref EssentialsLambdaZipBucket
       SourceBucket: 'nops-rules-lambda-sources'
-      Object: !Sub 'main-${Version}.zip'
+      Object: !Sub 'essentials-lambda-codes-${Version}.zip'
 
   EssentialsSetupRole:
     Type: AWS::IAM::Role
@@ -59,7 +63,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
       Policies:
-        - PolicyName: nops-essentials-lambda-copier
+        - PolicyName: nops-essentials-lambda-stack-policy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -80,7 +84,9 @@ Resources:
   EssentialsSetupFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Description: Copies objects from a source S3 bucket to a destination
+      Description: |
+        Copies objects from a source S3 bucket to a destination.
+        Removes old Essentials Stack.
       Handler: index.handler
       Runtime: python3.12
       Role: !GetAtt 'EssentialsSetupRole.Arn'
@@ -108,9 +114,18 @@ Resources:
               )
 
           def delete_objects(bucket, zip_object):
+              print(f'Deleting {zip_object} from {bucket}')
               s3 = boto3.client('s3')
               objects = {'Objects': [{'Key': zip_object}]}
               s3.delete_objects(Bucket=bucket, Delete=objects)
+
+          def delete_previous_stack(previous_version):
+              if not previous_version:
+                  return
+
+              print(f'Deleting previous Essentials Stack: {previous_version}')
+              cfn = boto3.client('cloudformation')
+              cfn.delete_stack(StackName=f'nOps-essentials-{previous_version}')
 
           def timeout(event, context):
               logging.error('Execution is about to time out, sending failure response to CloudFormation')
@@ -127,6 +142,8 @@ Resources:
               timer.start()
 
               print(f'Received event: {event}')
+
+              # Copy or delete zip object
               status = cfnresponse.SUCCESS
               try:
                   source_bucket = event['ResourceProperties']['SourceBucket']
@@ -139,21 +156,25 @@ Resources:
               except Exception as e:
                   logging.error('Exception: %s' % e, exc_info=True)
                   status = cfnresponse.FAILED
-              finally:
-                  timer.cancel()
-                  data = {
-                      'LambdaVersion': event['ResourceProperties']['LambdaVersion'],
-                      'StackVersion': event['ResourceProperties']['StackVersion'],
-                      'CreatedOn': event['ResourceProperties']['CreatedOn']
-                  } 
-                  cfnresponse.send(event, context, status, data, None)
+
+              # delete previous Essentials Stack
+              try:
+                  previous_version = event['ResourceProperties']['PreviousVersion']
+                  delete_previous_stack(previous_version)
+              except Exception as e:
+                  logging.error('Exception: %s' % e, exc_info=True)
+                  status = cfnresponse.FAILED
+
+              timer.cancel()
+              data = {'CreatedOn': event['ResourceProperties']['CreatedOn']} 
+              cfnresponse.send(event, context, status, data, None)
 
   EssentialsEventBridgeRule:
     Type: AWS::Events::Rule
     Properties:
-      Description: !Sub nOps Essentials EventBridge Rule - ${AWS::StackName}
+      Description: !Sub nOps Essentials EventBridge Rule - ${AWS::StackName} - ${Version}
       EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
-      Name: !Sub 'nops-essentials-${AWS::AccountId}-${AWS::Region}'
+      Name: !Sub 'nops-essentials-${AWS::AccountId}-${AWS::Region}-${Version}'
       RoleArn: !Sub ${EssentialsEventBridgeRole.Arn}
       State: ENABLED
       Targets:
@@ -163,10 +184,11 @@ Resources:
         {
           "detail": {
             "event_type": [
-              "scheduler_start_stop",
-              "nops_scheduler_tag_resource",
-              "nswitch_essential",
-              "essentials_idle_resources"
+              "essentials__scheduler",
+              "essentials__tag_resources",
+              "essentials__storage",
+              "essentials__rightsizing",
+              "essentials__idle_resources"
             ]
           }
         }
@@ -174,7 +196,7 @@ Resources:
   EssentialsEventBridgeRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub nops-essentials-eventbridge-role-${AWS::AccountId}-${AWS::Region}
+      RoleName: !Sub nops-essentials-eventbridge-role-${AWS::AccountId}-${AWS::Region}-${Version}
       Path: /
       AssumeRolePolicyDocument: |
         {
@@ -190,7 +212,7 @@ Resources:
           ]
         }
       Policies:
-        - PolicyName: nops-essentials-eventbridge-rules
+        - PolicyName: nops-essentials-eventbridge-rules-role
           PolicyDocument: !Sub |
             {
               "Version": "2012-10-17",
@@ -205,37 +227,13 @@ Resources:
               }]
             }
 
-  EssentialsLambdaFunction:
-    Type: "AWS::Lambda::Function"
-    DependsOn: EssentialsSetup
-    Properties:
-      FunctionName: !Sub nops-essentials-lambda-${AWS::AccountId}-${AWS::Region}
-      Description: nOps Essentials - Lambda Function
-      Runtime: python3.12
-      Handler: main.lambda_handler
-      MemorySize: 128
-      Timeout: 600
-      Role: !GetAtt EssentialsLambdaRole.Arn
-      Code:
-        S3Bucket: !Ref EssentialsLambdaZipBucket
-        S3Key: !Sub "main-${Version}.zip"
-      Tags:
-        - Key: version
-          Value: !GetAtt EssentialsSetup.LambdaVersion
-        - Key: createdon
-          Value: !GetAtt EssentialsSetup.CreatedOn
-
-  EssentialsLambdaFunctionEventPermissions:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Sub ${EssentialsLambdaFunction.Arn}
-      Principal: events.amazonaws.com
-
   EssentialsLambdaRole:
     Type: AWS::IAM::Role
     Description: |
       nOps Essentials Lambda Role with the following policy actions allowed:
+        CloudFormation:
+          - cfn:DescribeStacks
+          - cfn:DeleteStack
         Scheduler:
           ASG:
             - autoscaling:CreateOrUpdateTags
@@ -281,7 +279,7 @@ Resources:
             - ec2:DeleteVolume
             - ec2:DescribeVolumes
     Properties:
-      RoleName: !Sub nops-essentials-lambda-role-${AWS::AccountId}-${AWS::Region}
+      RoleName: !Sub nops-essentials-lambda-role-${AWS::AccountId}-${AWS::Region}-${Version}
       Path: /
       AssumeRolePolicyDocument: |
         {
@@ -297,7 +295,22 @@ Resources:
           ]
         }
       Policies:
-        - PolicyName: nops-essentials-rules
+        - PolicyName: nops-essentials-cloudformation-policy
+          PolicyDocument: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "cloudformation:DescribeStacks",
+                  "cloudformation:DeleteStack"
+                ],
+                "Resource": [
+                  "nOps-essentials-*"
+                ]
+              }]
+            }
+        - PolicyName: nops-essentials-lambda-policy
           PolicyDocument: |
             {
               "Version": "2012-10-17",
@@ -339,3 +352,30 @@ Resources:
                 ]
               }]
             }
+
+  EssentialsLambdaFunction:
+    Type: "AWS::Lambda::Function"
+    DependsOn: EssentialsSetup
+    Properties:
+      FunctionName: !Sub nops-essentials-lambda-${AWS::AccountId}-${AWS::Region}-${Version}
+      Description: !Sub nOps Essentials - Lambda Function - ${Version}
+      Runtime: python3.12
+      Handler: main.lambda_handler
+      MemorySize: 128
+      Timeout: 600
+      Role: !GetAtt EssentialsLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref EssentialsLambdaZipBucket
+        S3Key: !Sub "essentials-lambda-codes-${Version}.zip"
+      Tags:
+        - Key: createdon
+          Value: !GetAtt EssentialsSetup.CreatedOn
+        - Key: nops-essentials-stack-version
+          Value: !Ref Version
+
+  EssentialsLambdaFunctionEventPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Sub ${EssentialsLambdaFunction.Arn}
+      Principal: events.amazonaws.com
