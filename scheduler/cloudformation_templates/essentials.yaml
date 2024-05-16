@@ -47,7 +47,13 @@ Resources:
       CreatedOn: "2024-05-13"
       DestBucket: !Ref EssentialsLambdaZipBucket
       SourceBucket: 'nops-rules-lambda-sources'
-      Object: !Sub 'essentials-lambda-codes-${Version}.zip'
+      PreviousVersion: !Ref PreviousVersion
+      AccountId: !Ref 'AWS::AccountId'
+      Region: !Ref 'AWS::Region'
+      Environment: !Ref Environment
+      ClientId: !Ref nOpsClientId
+      EventBridgeName: !Ref EventBridgeName
+      Object: !Sub 'essentials/essentials-lambda-codes-${Version}.zip'
 
   EssentialsSetupRole:
     Type: AWS::IAM::Role
@@ -80,6 +86,40 @@ Resources:
                   - s3:PutObjectTagging
                 Resource:
                   - !Sub 'arn:aws:s3:::${EssentialsLambdaZipBucket}/*'
+              - Effect: Allow
+                Action:
+                  - events:DeleteRule
+                  - events:DisableRule
+                  - events:RemoveTargets
+                Resource:
+                  - !Sub 'arn:aws:events:*:${AWS::AccountId}:rule/aws.partner/nops.io/${AWS::AccountId}/*/nops-essentials-*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:DeleteStack
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:*:${AWS::AccountId}:stack/nOps-essentials-v*/*'
+              - Effect: Allow
+                Action:
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                Resource:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nOps-essentials-v*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nops-essentials-eventbridge-role-*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nops-essentials-lambda-role-*'
+              - Effect: Allow
+                Action:
+                  - lambda:DeleteFunction
+                  - lambda:InvokeFunction
+                  - lambda:RemovePermission
+                Resource:
+                  - !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:nOps-essentials-v*'
+                  - !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:nops-essentials-lambda-${AWS::AccountId}-${AWS::Region}-v*'
+              - Effect: Allow
+                Action:
+                  - s3:DeleteBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::nops-essentials-lambda-zips-${AWS::AccountId}-${AWS::Region}-*'
 
   EssentialsSetupFunction:
     Type: AWS::Lambda::Function
@@ -97,6 +137,7 @@ Resources:
           import logging
           import threading
 
+          import botocore
           import boto3
           import cfnresponse
 
@@ -116,11 +157,36 @@ Resources:
           def delete_objects(bucket, zip_object):
               print(f'Deleting {zip_object} from {bucket}')
               s3 = boto3.client('s3')
-              objects = {'Objects': [{'Key': zip_object}]}
-              s3.delete_objects(Bucket=bucket, Delete=objects)
+              s3.delete_objects(
+                  Bucket=bucket,
+                  Delete={'Objects': [{'Key': zip_object}]},
+              )
+
+          def disable_previous_eventbridge_rule(properties):
+              previous_version = properties['PreviousVersion']
+              if not previous_version:
+                  print('No previous version to disable')
+                  return
+
+              print(f'Disabling previous Essentials EventBridge Rule: {previous_version}')
+              account_id = properties['AccountId']
+              region = properties['Region']
+              environment = properties['Environment']
+              cliend_id = properties['ClientId']
+              event_bridge_name = properties['EventBridgeName']
+
+              events = boto3.client('events')
+              try:
+                  events.disable_rule(
+                      Name=f'nops-essentials-{account_id}-{region}-{previous_version}',
+                      EventBusName=f'aws.partner/nops.io/{account_id}/nops_{environment}_notification_{cliend_id}_{event_bridge_name}',
+                  )
+              except botocore.exceptions.ClientError as error:
+                  print('Error disabling previous rule: %s' % error)
 
           def delete_previous_stack(previous_version):
               if not previous_version:
+                  print('No previous version to delete')
                   return
 
               print(f'Deleting previous Essentials Stack: {previous_version}')
@@ -143,12 +209,14 @@ Resources:
 
               print(f'Received event: {event}')
 
+              properties = event['ResourceProperties']
+
               # Copy or delete zip object
               status = cfnresponse.SUCCESS
               try:
-                  source_bucket = event['ResourceProperties']['SourceBucket']
-                  dest_bucket = event['ResourceProperties']['DestBucket']
-                  zip_object = event['ResourceProperties']['Object']
+                  source_bucket = properties['SourceBucket']
+                  dest_bucket = properties['DestBucket']
+                  zip_object = properties['Object']
                   if event['RequestType'] == 'Delete':
                       delete_objects(dest_bucket, zip_object)
                   elif event['RequestType'] == 'Create':
@@ -157,22 +225,23 @@ Resources:
                   logging.error('Exception: %s' % e, exc_info=True)
                   status = cfnresponse.FAILED
 
-              # delete previous Essentials Stack
+              # disable old rule and delete previous Essentials Stack
               try:
-                  previous_version = event['ResourceProperties']['PreviousVersion']
-                  delete_previous_stack(previous_version)
+                  if event['RequestType'] == 'Create':
+                      disable_previous_eventbridge_rule(properties)
+                      delete_previous_stack(properties['PreviousVersion'])
               except Exception as e:
                   logging.error('Exception: %s' % e, exc_info=True)
                   status = cfnresponse.FAILED
 
               timer.cancel()
-              data = {'CreatedOn': event['ResourceProperties']['CreatedOn']} 
+              data = {'CreatedOn': properties['CreatedOn']} 
               cfnresponse.send(event, context, status, data, None)
 
   EssentialsEventBridgeRule:
     Type: AWS::Events::Rule
     Properties:
-      Description: !Sub nOps Essentials EventBridge Rule - ${AWS::StackName} - ${Version}
+      Description: !Sub nOps Essentials EventBridge Rule - ${AWS::StackName}
       EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
       Name: !Sub 'nops-essentials-${AWS::AccountId}-${AWS::Region}-${Version}'
       RoleArn: !Sub ${EssentialsEventBridgeRole.Arn}
@@ -231,9 +300,6 @@ Resources:
     Type: AWS::IAM::Role
     Description: |
       nOps Essentials Lambda Role with the following policy actions allowed:
-        CloudFormation:
-          - cfn:DescribeStacks
-          - cfn:DeleteStack
         Scheduler:
           ASG:
             - autoscaling:CreateOrUpdateTags
@@ -295,62 +361,47 @@ Resources:
           ]
         }
       Policies:
-        - PolicyName: nops-essentials-cloudformation-policy
-          PolicyDocument: |
-            {
-              "Version": "2012-10-17",
-              "Statement": [{
-                "Effect": "Allow",
-                "Action": [
-                  "cloudformation:DescribeStacks",
-                  "cloudformation:DeleteStack"
-                ],
-                "Resource": [
-                  "nOps-essentials-*"
-                ]
-              }]
-            }
         - PolicyName: nops-essentials-lambda-policy
           PolicyDocument: |
             {
               "Version": "2012-10-17",
-              "Statement": [{
-                "Effect": "Allow",
-                "Action": [
-                  "autoscaling:CreateOrUpdateTags",
-                  "autoscaling:DescribeAutoScalingGroups",
-                  "autoscaling:StartInstanceRefresh",
-                  "autoscaling:UpdateAutoScalingGroup",
-                  "ec2:CreateLaunchTemplateVersion",
-                  "ebs:CreateSnapshot",
-                  "ec2:CreateTags",
-                  "ec2:DeleteVolume",
-                  "ec2:DescribeVolumes",
-                  "ec2:DescribeLaunchTemplates",
-                  "ec2:DescribeLaunchTemplateVersions",
-                  "ec2:ModifyVolume",
-                  "ec2:ModifyLaunchTemplate",
-                  "ec2:RunInstances",
-                  "ec2:StartInstances",
-                  "ec2:StopInstances",
-                  "ec2:TerminateInstances",
-                  "eks:DescribeNodegroup",
-                  "eks:TagResource",
-                  "logs:CreateLogGroup",
-                  "logs:CreateLogStream",
-                  "logs:PutLogEvents",
-                  "rds:AddTagsToResource",
-                  "rds:DescribeDbInstances",
-                  "rds:ModifyDBInstance",
-                  "rds:StartDBCluster",
-                  "rds:StartDBInstance",
-                  "rds:StopDBCluster",
-                  "rds:StopDBInstance"
-                ],
-                "Resource": [
-                  "*"
-                ]
-              }]
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "autoscaling:CreateOrUpdateTags",
+                    "autoscaling:DescribeAutoScalingGroups",
+                    "autoscaling:StartInstanceRefresh",
+                    "autoscaling:UpdateAutoScalingGroup",
+                    "ec2:CreateLaunchTemplateVersion",
+                    "ebs:CreateSnapshot",
+                    "ec2:CreateTags",
+                    "ec2:DeleteVolume",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeLaunchTemplates",
+                    "ec2:DescribeLaunchTemplateVersions",
+                    "ec2:ModifyVolume",
+                    "ec2:ModifyLaunchTemplate",
+                    "ec2:RunInstances",
+                    "ec2:StartInstances",
+                    "ec2:StopInstances",
+                    "ec2:TerminateInstances",
+                    "eks:DescribeNodegroup",
+                    "eks:TagResource",
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "rds:AddTagsToResource",
+                    "rds:DescribeDbInstances",
+                    "rds:ModifyDBInstance",
+                    "rds:StartDBCluster",
+                    "rds:StartDBInstance",
+                    "rds:StopDBCluster",
+                    "rds:StopDBInstance"
+                  ],
+                  "Resource": "*"
+                }
+              ]
             }
 
   EssentialsLambdaFunction:
@@ -366,7 +417,7 @@ Resources:
       Role: !GetAtt EssentialsLambdaRole.Arn
       Code:
         S3Bucket: !Ref EssentialsLambdaZipBucket
-        S3Key: !Sub "essentials-lambda-codes-${Version}.zip"
+        S3Key: !Sub "essentials/essentials-lambda-codes-${Version}.zip"
       Tags:
         - Key: createdon
           Value: !GetAtt EssentialsSetup.CreatedOn
