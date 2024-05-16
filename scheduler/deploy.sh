@@ -39,11 +39,11 @@ cd essentials_package/
 zip -r ../essentials-latest.zip .
 cd ..
 
-aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essentials-lambda-codes-latest.zip --acl public-read
-aws s3 cp cloudformation_templates/essentials.yaml s3://nops-rules-lambda-sources/essentials-latest.yaml --acl public-read
+aws s3 cp essentials-latest.zip s3://nops-rules-lambda-sources/essentials/essentials-lambda-codes-latest.zip --acl public-read
+aws s3 cp cloudformation_templates/essentials.yaml s3://nops-rules-lambda-sources/essentials/essentials-latest.yaml --acl public-read
 
 if [ "$ENV" == "prod" ];then
-    aws s3 cp cloudformation_templates/essentials_encrypted_ebs_kms_policy_all.yml s3://nops-rules-lambda-sources/essentials_encrypted_ebs_kms_policy_all.yml --acl public-read
+    aws s3 cp cloudformation_templates/essentials_encrypted_ebs_kms_policy_all.yml s3://nops-rules-lambda-sources/essentials/essentials_encrypted_ebs_kms_policy_all.yml --acl public-read
 else
-    aws s3 cp cloudformation_templates/essentials_encrypted_ebs_kms_policy_all.yml s3://nops-rules-lambda-sources/essentials_encrypted_ebs_kms_policy_all-uat.yml --acl public-read
+    aws s3 cp cloudformation_templates/essentials_encrypted_ebs_kms_policy_all.yml s3://nops-rules-lambda-sources/essentials/essentials_encrypted_ebs_kms_policy_all-uat.yml --acl public-read
 fi
