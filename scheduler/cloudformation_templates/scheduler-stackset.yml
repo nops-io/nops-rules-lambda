@@ -139,7 +139,7 @@ Resources:
         Properties: 
             Description: !Sub nOps scheduler - ${AWS::StackName}
             EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
-            Name: !Sub 'nops-scheduler-${AWS::AccountId}-${AWS::Region}'
+            Name: !Sub 'nops-scheduler-idle-${AWS::AccountId}-${AWS::Region}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -160,7 +160,7 @@ Resources:
         Properties: 
             Description: !Sub nOps Tag resource - ${AWS::StackName}
             EventBusName: !Sub 'aws.partner/nops.io/${AWS::AccountId}/nops_${Environment}_notification_${nOpsClientId}_${EventBridgeName}'
-            Name: !Sub 'nops-nswitch-scheduler-tag-resource-${AWS::AccountId}-${AWS::Region}'
+            Name: !Sub 'nops-nswitch-scheduler-idle-tag-resource-${AWS::AccountId}-${AWS::Region}'
             RoleArn: !Sub ${EventBridgeRole.Arn}
             State: ENABLED
             Targets: 
@@ -191,7 +191,7 @@ Resources:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
         Properties:
-            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-idle-lambda
             Description: nOps Function - nSwitch Scheduler
             Runtime: python3.11
             Handler: main.lambda_handler
@@ -213,7 +213,7 @@ Resources:
         Type: "AWS::Lambda::Function"
         DependsOn: NSwitchSetup
         Properties:
-            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-lambda-tag-resource
+            FunctionName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-idle-lambda-tag-resource
             Description: nOps Function - Use to tag resource
             Runtime: python3.11
             Handler: tag_resource.lambda_handler
@@ -234,7 +234,7 @@ Resources:
     LambdaRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub nops-essentials-lambda-role-${AWS::AccountId}-${AWS::Region}
+            RoleName: !Sub nops-essentials-idle-lambda-role-${AWS::AccountId}-${AWS::Region}
             Path: /
             AssumeRolePolicyDocument: |
                 {
@@ -288,7 +288,7 @@ Resources:
     EventBridgeRole:
         Type: AWS::IAM::Role
         Properties:
-            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-event-bridge-role
+            RoleName: !Sub ${AWS::AccountId}-${AWS::Region}-scheduler-idle-event-bridge-role
             Path: /
             AssumeRolePolicyDocument: |
                 {
