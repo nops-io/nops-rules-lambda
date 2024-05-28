@@ -105,7 +105,7 @@ Resources:
                   - iam:DetachRolePolicy
                 Resource:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nOps-essentials-v*'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nops-essentials-eventbridge-role-*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nops-essentials-eb-role-*'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/nops-essentials-lambda-role-*'
               - Effect: Allow
                 Action:
@@ -265,7 +265,7 @@ Resources:
   EssentialsEventBridgeRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub nops-essentials-eventbridge-role-${AWS::AccountId}-${AWS::Region}-${Version}
+      RoleName: !Sub nops-essentials-eb-role-${AWS::AccountId}-${AWS::Region}-${Version}
       Path: /
       AssumeRolePolicyDocument: |
         {
