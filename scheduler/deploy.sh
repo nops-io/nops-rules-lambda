@@ -10,11 +10,11 @@ cd ..
 if [ "$ENV" == "prod" ];then
     aws s3 cp main-latest.zip s3://nops-rules-lambda-sources/scheduler/main-latest.zip --acl public-read
     aws s3 cp cloudformation_templates/scheduler-stackset.yml s3://nops-rules-lambda-sources/scheduler/scheduler-stackset.yml --acl public-read
-    aws s3 cp cloudformation_templates/encrypted_ebs_kms_policy.yml s3://nops-rules-lambda-sources/scheduler/encrypted_ebs_kms_policy.yml --acl public-read
+    aws s3 cp cloudformation_templates/encrypted_ebs_kms_policy.yml s3://nops-rules-lambda-sources/essentials/encrypted_ebs_kms_policy.yml --acl public-read
 else
     aws s3 cp main-latest.zip s3://nops-rules-lambda-sources/scheduler/main-latest-uat.zip --acl public-read
     aws s3 cp cloudformation_templates/scheduler-stackset.yml s3://nops-rules-lambda-sources/scheduler/scheduler-stackset-uat.yml --acl public-read
-    aws s3 cp cloudformation_templates/encrypted_ebs_kms_policy.yml s3://nops-rules-lambda-sources/scheduler/encrypted_ebs_kms_policy-uat.yml --acl public-read
+    aws s3 cp cloudformation_templates/encrypted_ebs_kms_policy.yml s3://nops-rules-lambda-sources/essentials/encrypted_ebs_kms_policy-uat.yml --acl public-read
 fi
 
 
