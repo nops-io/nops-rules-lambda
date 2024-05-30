@@ -79,6 +79,8 @@ HANDLER_MAP = {
 
 
 def lambda_handler(event, context):
+    logging.info(f'Received event: {event}')
+
     event_type = event["detail"]["event_type"]
     if event_type not in (
         "essentials__scheduler",  # Essentials Scheduler
@@ -94,11 +96,10 @@ def lambda_handler(event, context):
     messages = []
     for resource in resources:
         try:
-            handler = HANDLER_MAP.get(resource.get("item_type"), {}).get(action)
+            handler = HANDLER_MAP.get(event_type, {}).get(resource.get("item_type"), {}).get(action)
             messages.append(handler(resource))
         except Exception as e:
             logging.error(e)
-            print(e)
 
     msg = {"results": messages}
 
