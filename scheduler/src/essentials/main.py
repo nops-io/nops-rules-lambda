@@ -61,6 +61,7 @@ HANDLER_MAP = {
     "essentials__storage": {
         "ebs": {"ebs_migration": ec2_ebs_migration},
         "asg": {"ebs_migration": asg_ebs_migration},
+        "snapshots": {"archive_snapshot": archive_snapshot},
     },
     "essentials__rightsizing": {
         "ec2": {"ec2_rightsizing": ec2_rightsizing},

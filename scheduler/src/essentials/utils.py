@@ -39,3 +39,21 @@ def get_autoscaling_name_from_resource(resource):
 
 def get_arn_from_resource(resource):
     return resource.get("resource_arn", "") or resource.get("resource_id", "")
+
+
+def get_snapshot_id_from_resource(resource):
+    arn = resource.get("resource_arn", "")
+    resource_id = resource.get("resource_id", "")
+
+    if resource_id.startswith("snap-"):
+        return resource_id
+
+    if not arn and resource_id.startswith("arn:"):
+        arn = resource_id
+
+    if arn.startswith("arn:"):
+        resource_id = arn.split("/")[-1]
+
+    else:
+        raise Exception("Invalid Snapshot id")
+
