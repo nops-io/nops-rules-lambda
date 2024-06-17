@@ -331,6 +331,8 @@ Resources:
               - ec2:DescribeLaunchTemplates
               - ec2:DescribeLaunchTemplateVersions
               - ec2:ModifyLaunchTemplate
+          Snapshots:
+            - ec2:ModifySnapshotTier
         Rightsizing:
           EC2:
             - ec2:DescribeInstances
@@ -383,8 +385,9 @@ Resources:
                     "ec2:DescribeLaunchTemplates",
                     "ec2:DescribeLaunchTemplateVersions",
                     "ec2:ModifyInstanceAttribute",
-                    "ec2:ModifyVolume",
                     "ec2:ModifyLaunchTemplate",
+                    "ec2:ModifySnapshotTier",
+                    "ec2:ModifyVolume",
                     "ec2:RunInstances",
                     "ec2:StartInstances",
                     "ec2:StopInstances",
