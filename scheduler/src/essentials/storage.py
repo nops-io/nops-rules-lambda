@@ -100,3 +100,23 @@ def asg_ebs_migration(resource):
     except ClientError as error:
         logging.error(error)
         print(error)
+
+
+def archive_snapshot(resource):
+    try:
+        # Initialize the EC2 client
+        snapshot_id = get_snapshot_id_from_resource(resource)
+        ec2_client = boto3.client('ec2', region_name=resource["region"])
+        
+        # Modify the snapshot attribute to move it to cold storage
+        ec2_client.modify_snapshot_tier(
+            SnapshotId=snapshot_id,
+            StorageTier='archive'
+        )
+        
+        return f"Snapshot {snapshot_id} has been archived."
+        
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+        return f"Failed to archive snapshot {snapshot_id}."
