@@ -17,6 +17,7 @@ from scheduler import stop_nodegroup
 from scheduler import stop_rds_cluster
 from scheduler import stop_rds_instance
 from scheduler import update_ec2_auto_scaling
+from storage import archive_snapshot
 from storage import asg_ebs_migration
 from storage import ec2_ebs_migration
 from tagging import update_tag_autoscaling_group
@@ -61,7 +62,7 @@ HANDLER_MAP = {
     "essentials__storage": {
         "ebs": {"ebs_migration": ec2_ebs_migration},
         "asg": {"ebs_migration": asg_ebs_migration},
-        "snapshots": {"archive_snapshot": archive_snapshot},
+        "snapshot": {"archive_snapshot": archive_snapshot},
     },
     "essentials__rightsizing": {
         "ec2": {"ec2_rightsizing": ec2_rightsizing},
