@@ -4,6 +4,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from utils import get_ebs_volume_id_from_resource
+from utils import get_snapshot_id_from_resource
 
 
 def ec2_ebs_migration(resource):
