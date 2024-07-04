@@ -57,3 +57,6 @@ def get_snapshot_id_from_resource(resource):
     else:
         raise Exception("Invalid Snapshot id")
 
+
+def get_bucket_name_from_resource(resource):
+    return resource["resource_name"]

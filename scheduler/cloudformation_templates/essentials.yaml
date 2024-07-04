@@ -333,6 +333,11 @@ Resources:
               - ec2:ModifyLaunchTemplate
           Snapshots:
             - ec2:ModifySnapshotTier
+          S3 Intelligent-Tiering:
+            - s3:GetIntelligentTieringConfiguration
+            - s3:GetLifecycleConfiguration
+            - s3:PutIntelligentTieringConfiguration
+            - s3:PutLifecycleConfiguration
         Rightsizing:
           EC2:
             - ec2:DescribeInstances
@@ -403,7 +408,11 @@ Resources:
                     "rds:StartDBCluster",
                     "rds:StartDBInstance",
                     "rds:StopDBCluster",
-                    "rds:StopDBInstance"
+                    "rds:StopDBInstance",
+                    "s3:GetIntelligentTieringConfiguration",
+                    "s3:GetLifecycleConfiguration",
+                    "s3:PutIntelligentTieringConfiguration",
+                    "s3:PutLifecycleConfiguration"
                   ],
                   "Resource": "*"
                 }
