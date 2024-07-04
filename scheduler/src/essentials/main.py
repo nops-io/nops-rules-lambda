@@ -20,6 +20,8 @@ from scheduler import update_ec2_auto_scaling
 from storage import archive_snapshot
 from storage import asg_ebs_migration
 from storage import ec2_ebs_migration
+from storage import s3_intelligent_tiering_migration
+from storage import s3_intelligent_tiering_migration_with_archiving
 from tagging import update_tag_autoscaling_group
 from tagging import update_tag_ec2
 from tagging import update_tag_nodegroup
@@ -63,6 +65,10 @@ HANDLER_MAP = {
         "ebs": {"ebs_migration": ec2_ebs_migration},
         "asg": {"ebs_migration": asg_ebs_migration},
         "snapshot": {"archive_snapshot": archive_snapshot},
+        "s3_bucket": {
+            "intelligent_tiering_migration": s3_intelligent_tiering_migration,
+            "intelligent_tiering_migration_with_archiving": s3_intelligent_tiering_migration_with_archiving,
+        },
     },
     "essentials__rightsizing": {
         "ec2": {"ec2_rightsizing": ec2_rightsizing},

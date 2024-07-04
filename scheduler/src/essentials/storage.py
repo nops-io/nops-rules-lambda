@@ -3,6 +3,7 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 
+from utils import get_bucket_name_from_resource
 from utils import get_ebs_volume_id_from_resource
 from utils import get_snapshot_id_from_resource
 
@@ -121,3 +122,63 @@ def archive_snapshot(resource):
         logging.error(error)
         print(error)
         return f"Failed to archive snapshot {snapshot_id}."
+
+
+def s3_intelligent_tiering_migration(resource, configure_archive_tier=False):
+    try:
+        # Initialize the S3 client
+        bucket_name = get_bucket_name_from_resource(resource)
+        s3_client = boto3.client('s3')
+
+        # Put the bucket configuration
+        s3_client.put_bucket_lifecycle_configuration(
+            Bucket=bucket_name,
+            LifecycleConfiguration={
+                'Rules': [
+                    {
+                        'ID': f'nOps-Essentials-{bucket_name}-rule',
+                        'Filter': {'ObjectSizeGreaterThan': 128},
+                        'Status': 'Enabled',
+                        'Transitions': [
+                            {
+                                'Days': 0,
+                                'StorageClass': 'INTELLIGENT_TIERING'
+                            },
+                        ],
+                    },
+                ],
+            },
+            ExpectedBucketOwner=resource["account_number"],
+        )
+
+        # optional step: configure archive tiers
+        if configure_archive_tier:
+            configuration_id = f'nOps-Essentials-{bucket_name}-configuration'
+            s3_client.put_bucket_intelligent_tiering_configuration(
+                Bucket=bucket_name,
+                Id=configuration_id,
+                IntelligentTieringConfiguration={
+                    'Id': configuration_id,
+                    'Status': 'Enabled',
+                    'Tierings': [
+                        {
+                            'Days': 90,
+                            'AccessTier': 'ARCHIVE_ACCESS',
+                        },
+                        {
+                            'Days': 180,
+                            'AccessTier': 'DEEP_ARCHIVE_ACCESS',
+                        },
+                    ],
+                },
+            )
+
+        return f"Bucket {bucket_name} has been migrated to Intelligent-Tiering."
+    except ClientError as error:
+        logging.error(error)
+        print(error)
+        return f"Failed to migrate bucket {bucket_name} to Intelligent-Tiering."
+
+
+def s3_intelligent_tiering_migration_with_archiving(resource):
+    return s3_intelligent_tiering_migration(resource, configure_archive_tier=True)
